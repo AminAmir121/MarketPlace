@@ -3,7 +3,7 @@ const router = express.Router();
 const {verifyToken} = require('../middleware/auth')
 const upload = require('../utils/uploads');
 
-const {SendOtp, VerfiyOTP , Register, Login, GetUserAds, GetAllAdsController, UpdateStoreName, PostAd, EditAd, DeleteAd, AddToCart, RemoveFromCartController, GetUserCartController}  = require('../controller/UserController');
+const {SendOtp, VerfiyOTP , Register, Login, GetUserAds, GetAllAdsController, UpdateStoreName, PostAd, EditAd, DeleteAd, AddToCart, RemoveFromCartController, GetUserCartController, PlaceOrderController, GetUserOrdersController, AddCommentController, GetProductCommentsController, GetVendorAdsController, SubmitReportController, GetUserRoleController, GetAllVendorStoresController, BanStoreController, GetAdminReportsController, ResolveReportController}  = require('../controller/UserController');
 
 router.post('/send-otp', SendOtp);
 router.post('/verify-otp', VerfiyOTP);
@@ -18,6 +18,17 @@ router.post('/DeleteAdByUserId', verifyToken, DeleteAd);
 router.post('/AddToCart', verifyToken, AddToCart);
 router.post('/RemoveFromCart', verifyToken, RemoveFromCartController);
 router.get('/GetUserCart', verifyToken, GetUserCartController);
+router.post('/PlaceOrder', verifyToken, PlaceOrderController);
+router.get('/GetUserOrders', verifyToken, GetUserOrdersController);
+router.post('/AddComment', verifyToken, AddCommentController);
+router.get('/GetProductComments', GetProductCommentsController);
+router.get('/GetVendorAds', GetVendorAdsController);
+router.post('/SubmitReport', verifyToken, SubmitReportController);
+router.get('/GetUserRole', verifyToken, GetUserRoleController);
+router.get('/GetAllVendorStores', verifyToken, GetAllVendorStoresController);
+router.post('/BanStore', verifyToken, BanStoreController);
+router.get('/GetAdminReports', verifyToken, GetAdminReportsController);
+router.post('/ResolveReport', verifyToken, ResolveReportController);
 router.get('/CheckToken',  verifyToken, (req, res) => {
      res.json({
           success: true,

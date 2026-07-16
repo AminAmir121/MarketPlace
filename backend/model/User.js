@@ -1,5 +1,6 @@
 const db = require('../utils/db');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 
 const getResolvedUserId = (req, fallbackUserId = null) => {
      const fromBody = req.body?.userId || req.body?.user_id || req.body?.userid || fallbackUserId || null;
@@ -137,6 +138,13 @@ const DeleteAdByUserId = async (req) => {
      };
 }
 
+const assertNotOwnProduct = async (productId, userId) => {
+     const [rows] = await db.execute("SELECT userId FROM userads WHERE productId = ?", [productId]);
+     if (rows.length > 0 && String(rows[0].userId) === String(userId)) {
+          throw new Error("This is your own product, you cannot buy or add it to cart.");
+     }
+};
+
 const AddToCart = async (req) => {
      const { productId, id, itemId } = req.body;
      const resolvedProductId = productId || id || itemId || null;
@@ -149,6 +157,8 @@ const AddToCart = async (req) => {
      if (!userId) {
           throw new Error("User authentication is required to add to cart.");
      }
+
+     await assertNotOwnProduct(resolvedProductId, userId);
 
      await ensureCartTable();
 
@@ -250,6 +260,405 @@ const GetUserCart = async (req) => {
           rating: Number(row.rating),
           createdAt: row.createdAt
      }));
+};
+
+const ensureOrdersTable = async () => {
+     await db.execute(`
+          CREATE TABLE IF NOT EXISTS orders (
+               id INT AUTO_INCREMENT PRIMARY KEY,
+               userId INT NOT NULL,
+               productId INT NOT NULL,
+               status VARCHAR(50) NOT NULL DEFAULT 'processing',
+               createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+     `);
+};
+
+const PlaceOrder = async (req) => {
+     const { productId, id, itemId } = req.body;
+     const resolvedProductId = productId || id || itemId || null;
+     const userId = getResolvedUserId(req, req.body?.userId || req.body?.user_id || req.body?.userid || null);
+
+     if (!resolvedProductId) {
+          throw new Error("Product id is required to place an order.");
+     }
+
+     if (!userId) {
+          throw new Error("User authentication is required to place an order.");
+     }
+
+     await assertNotOwnProduct(resolvedProductId, userId);
+
+     await ensureOrdersTable();
+
+     const [result] = await db.execute(
+          "INSERT INTO orders (userId, productId, status) VALUES (?, ?, 'processing')",
+          [userId, resolvedProductId]
+     );
+
+     return {
+          success: true,
+          id: result.insertId,
+          userId,
+          productId: resolvedProductId,
+          status: "processing"
+     };
+};
+
+const GetUserOrders = async (req) => {
+     const userId = getResolvedUserId(req, req.body?.userId || req.body?.user_id || req.body?.userid || null);
+
+     if (!userId) {
+          throw new Error("User authentication is required to fetch your orders.");
+     }
+
+     await ensureOrdersTable();
+     await db.execute(`
+          CREATE TABLE IF NOT EXISTS userads (
+               productId INT AUTO_INCREMENT PRIMARY KEY,
+               userId INT NOT NULL,
+               title VARCHAR(255) NOT NULL,
+               price DECIMAL(10, 2) NOT NULL,
+               storeName VARCHAR(255) NOT NULL,
+               description TEXT NOT NULL,
+               image_path VARCHAR(255) DEFAULT NULL,
+               createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+     `);
+
+     const query = `
+          SELECT
+               o.id AS id,
+               o.status AS status,
+               o.createdAt AS createdAt,
+               o.productId AS productId,
+               COALESCE(a.title, 'Product unavailable') AS name,
+               COALESCE(a.price, 0) AS price,
+               COALESCE(a.storeName, 'Vendor') AS store,
+               COALESCE(a.image_path, 'https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=600&q=80') AS image
+          FROM orders o
+          LEFT JOIN userads a ON a.productId = o.productId
+          WHERE o.userId = ?
+          ORDER BY o.createdAt DESC
+     `;
+
+     const [rows] = await db.execute(query, [userId]);
+
+     return rows.map((row) => ({
+          id: row.id,
+          productId: row.productId,
+          productName: row.name,
+          store: row.store,
+          price: Number(row.price),
+          qty: 1,
+          status: row.status,
+          date: row.createdAt,
+          image: row.image
+     }));
+};
+
+const ensureCommentsTable = async () => {
+     await db.execute(`
+          CREATE TABLE IF NOT EXISTS comments (
+               id INT AUTO_INCREMENT PRIMARY KEY,
+               userId INT NOT NULL,
+               productId INT NOT NULL,
+               comment TEXT NOT NULL,
+               createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+     `);
+};
+
+const AddComment = async (req) => {
+     const { productId, comment } = req.body;
+     const userId = getResolvedUserId(req, req.body?.userId || req.body?.user_id || req.body?.userid || null);
+
+     if (!productId) {
+          throw new Error("Product id is required to post a comment.");
+     }
+
+     if (!comment || !comment.trim()) {
+          throw new Error("Comment text is required.");
+     }
+
+     if (!userId) {
+          throw new Error("User authentication is required to post a comment.");
+     }
+
+     await ensureCommentsTable();
+
+     const [result] = await db.execute(
+          "INSERT INTO comments (userId, productId, comment) VALUES (?, ?, ?)",
+          [userId, productId, comment.trim()]
+     );
+
+     const [rows] = await db.execute(
+          `SELECT c.id AS id, c.comment AS comment, c.createdAt AS createdAt, u.name AS name, u.email AS email
+           FROM comments c
+           LEFT JOIN users u ON u.userid = c.userId
+           WHERE c.id = ?`,
+          [result.insertId]
+     );
+
+     return rows[0];
+};
+
+const GetProductComments = async (req) => {
+     const productId = req.query?.productId || req.body?.productId;
+
+     if (!productId) {
+          throw new Error("Product id is required to fetch comments.");
+     }
+
+     await ensureCommentsTable();
+
+     const [rows] = await db.execute(
+          `SELECT c.id AS id, c.comment AS comment, c.createdAt AS createdAt, u.name AS name, u.email AS email
+           FROM comments c
+           LEFT JOIN users u ON u.userid = c.userId
+           WHERE c.productId = ?
+           ORDER BY c.createdAt DESC`,
+          [productId]
+     );
+
+     return rows;
+};
+
+const GetVendorAds = async (vendorId) => {
+     if (!vendorId) {
+          throw new Error("Vendor id is required.");
+     }
+
+     await db.execute(`
+          CREATE TABLE IF NOT EXISTS userads (
+               productId INT AUTO_INCREMENT PRIMARY KEY,
+               userId INT NOT NULL,
+               title VARCHAR(255) NOT NULL,
+               price DECIMAL(10, 2) NOT NULL,
+               storeName VARCHAR(255) NOT NULL,
+               description TEXT NOT NULL,
+               image_path VARCHAR(255) DEFAULT NULL,
+               createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+     `);
+
+     const [userRows] = await db.execute(
+          "SELECT name, storeName FROM users WHERE userid = ?",
+          [vendorId]
+     );
+
+     if (userRows.length === 0) {
+          throw new Error("Vendor not found.");
+     }
+
+     const [adRows] = await db.execute(
+          "SELECT productId AS id, title AS name, price, storeName, description, image_path AS image, createdAt FROM userads WHERE userId = ? ORDER BY createdAt DESC",
+          [vendorId]
+     );
+
+     return {
+          vendorName: userRows[0].name,
+          storeName: userRows[0].storeName || "Marketo Store",
+          ads: adRows.map((row) => ({
+               id: row.id,
+               name: row.name,
+               price: Number(row.price),
+               status: "active",
+               views: 0,
+               image: row.image || "https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=600&q=80",
+               storeName: row.storeName,
+               description: row.description,
+               createdAt: row.createdAt
+          }))
+     };
+};
+
+const ensureReportsTable = async () => {
+     await db.execute(`
+          CREATE TABLE IF NOT EXISTS reports (
+               id INT AUTO_INCREMENT PRIMARY KEY,
+               userId INT NOT NULL,
+               storeName VARCHAR(255) NOT NULL,
+               comment TEXT NOT NULL,
+               status VARCHAR(50) NOT NULL DEFAULT 'open',
+               createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+     `);
+
+     const [columns] = await db.execute("SHOW COLUMNS FROM reports");
+     const columnNames = columns.map((column) => column.Field);
+
+     if (!columnNames.includes('status')) {
+          await db.execute("ALTER TABLE reports ADD COLUMN status VARCHAR(50) NOT NULL DEFAULT 'open'");
+     }
+};
+
+const assertAdmin = async (req) => {
+     const userId = getResolvedUserId(req, req.body?.userId || req.body?.user_id || req.body?.userid || null);
+
+     if (!userId) {
+          throw new Error("User authentication is required.");
+     }
+
+     const [rows] = await db.execute("SELECT role FROM users WHERE userid = ?", [userId]);
+
+     if (rows.length === 0 || rows[0].role !== 'admin') {
+          throw new Error("Admin access is required for this action.");
+     }
+
+     return userId;
+};
+
+const sendStoreDeletedEmail = async (email, name) => {
+     const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+               user: 'ameenaamir121@gmail.com',
+               pass: 'aryu czss gzrh ybaf'
+          }
+     });
+
+     await transporter.sendMail({
+          from: 'ameenaamir121@gmail.com',
+          to: email,
+          subject: 'Your Marketo store has been removed',
+          text: `Hello ${name || ''},\n\nYour store and account on Marketo have been removed by an administrator due to a policy violation.\n\nIf you believe this was a mistake, please contact support.\n\n- Marketo Team`
+     });
+};
+
+const GetAllVendorStores = async (req) => {
+     await assertAdmin(req);
+
+     const [rows] = await db.execute(`
+          SELECT
+               u.userid AS vendorId,
+               u.name AS vendorName,
+               u.email AS email,
+               u.storeName AS storeName,
+               COUNT(a.productId) AS productCount,
+               MIN(a.createdAt) AS joinedAt
+          FROM users u
+          JOIN userads a ON a.userId = u.userid
+          GROUP BY u.userid, u.name, u.email, u.storeName
+          ORDER BY joinedAt DESC
+     `);
+
+     return rows.map((row) => ({
+          vendorId: row.vendorId,
+          vendorName: row.vendorName,
+          email: row.email,
+          storeName: row.storeName || `${row.vendorName}'s Store`,
+          productCount: Number(row.productCount),
+          joinedAt: row.joinedAt
+     }));
+};
+
+const BanStore = async (req) => {
+     await assertAdmin(req);
+
+     const { vendorId } = req.body;
+
+     if (!vendorId) {
+          throw new Error("Vendor id is required to ban a store.");
+     }
+
+     const [userRows] = await db.execute("SELECT name, email FROM users WHERE userid = ?", [vendorId]);
+
+     if (userRows.length === 0) {
+          throw new Error("Vendor not found.");
+     }
+
+     const { name, email } = userRows[0];
+
+     await db.execute("DELETE FROM cart WHERE userId = ?", [vendorId]);
+     await db.execute("DELETE FROM userads WHERE userId = ?", [vendorId]);
+     await db.execute("DELETE FROM users WHERE userid = ?", [vendorId]);
+
+     if (email) {
+          try {
+               await sendStoreDeletedEmail(email, name);
+          } catch (emailError) {
+               console.warn('Failed to send store-deleted email:', emailError.message);
+          }
+     }
+
+     return { success: true, vendorId };
+};
+
+const GetAdminReports = async (req) => {
+     await assertAdmin(req);
+     await ensureReportsTable();
+
+     const [rows] = await db.execute(`
+          SELECT r.id AS id, r.storeName AS storeName, r.comment AS comment, r.status AS status, r.createdAt AS createdAt, u.email AS reporterEmail
+          FROM reports r
+          LEFT JOIN users u ON u.userid = r.userId
+          ORDER BY r.createdAt DESC
+     `);
+
+     return rows;
+};
+
+const ResolveReport = async (req) => {
+     await assertAdmin(req);
+
+     const { reportId } = req.body;
+
+     if (!reportId) {
+          throw new Error("Report id is required.");
+     }
+
+     await ensureReportsTable();
+     await db.execute("UPDATE reports SET status = 'resolved' WHERE id = ?", [reportId]);
+
+     return { success: true, reportId };
+};
+
+const SubmitReport = async (req) => {
+     const { storeName, comment } = req.body;
+     const userId = getResolvedUserId(req, req.body?.userId || req.body?.user_id || req.body?.userid || null);
+
+     if (!storeName) {
+          throw new Error("Store name is required to submit a report.");
+     }
+
+     if (!comment || !comment.trim()) {
+          throw new Error("Report comment is required.");
+     }
+
+     if (!userId) {
+          throw new Error("User authentication is required to submit a report.");
+     }
+
+     await ensureReportsTable();
+
+     const [result] = await db.execute(
+          "INSERT INTO reports (userId, storeName, comment) VALUES (?, ?, ?)",
+          [userId, storeName, comment.trim()]
+     );
+
+     return {
+          success: true,
+          id: result.insertId,
+          userId,
+          storeName
+     };
+};
+
+const GetUserRole = async (req) => {
+     const userId = getResolvedUserId(req, req.body?.userId || req.body?.user_id || req.body?.userid || null);
+
+     if (!userId) {
+          throw new Error("User authentication is required to check role.");
+     }
+
+     const [rows] = await db.execute("SELECT role FROM users WHERE userid = ?", [userId]);
+
+     if (rows.length === 0) {
+          throw new Error("User not found.");
+     }
+
+     return { role: rows[0].role || "vendor" };
 };
 
 const EditAdByUserId = async (req) => {
@@ -488,4 +897,4 @@ const PostAd = async (req) => {
      };
 }
 
-module.exports = { RegisterUser, GetUserByEmail, UpdateUserStoreName, DeleteAdByUserId, EditAdByUserId, GetAllAds, GetAdsByUserId, PostAd, AddToCart, RemoveFromCart, GetUserCart };
+module.exports = { RegisterUser, GetUserByEmail, UpdateUserStoreName, DeleteAdByUserId, EditAdByUserId, GetAllAds, GetAdsByUserId, PostAd, AddToCart, RemoveFromCart, GetUserCart, PlaceOrder, GetUserOrders, AddComment, GetProductComments, GetVendorAds, SubmitReport, GetUserRole, GetAllVendorStores, BanStore, GetAdminReports, ResolveReport };

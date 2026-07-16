@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+import ProtectedRoutes from "../components/ProtectedRoutes";
+import { GetUserRole, GetAllVendorStores, BanStore, GetAdminReports, ResolveReport } from "../server/server";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -26,135 +30,25 @@ ChartJS.register(
   Legend
 );
 
-type Store = {
-  id: string;
-  name: string;
-  vendor: string;
+type VendorStore = {
+  vendorId: number;
+  vendorName: string;
   email: string;
-  products: number;
-  revenue: number;
-  rating: number;
-  status: "active" | "banned";
+  storeName: string;
+  productCount: number;
+  joinedAt: string;
+};
+
+type AdminReport = {
+  id: number;
+  storeName: string;
+  comment: string;
+  status: "open" | "resolved";
   createdAt: string;
+  reporterEmail: string;
 };
 
-type Report = {
-  id: string;
-  reporter: string;
-  targetStore: string;
-  reason: string;
-  date: string;
-  status: "pending" | "reviewed" | "resolved";
-  severity: "low" | "medium" | "high";
-};
-
-const INITIAL_STORES: Store[] = [
-  {
-    id: "st-001",
-    name: "TechVault",
-    vendor: "Alex Johnson",
-    email: "alex@techvault.com",
-    products: 24,
-    revenue: 12450,
-    rating: 4.8,
-    status: "active",
-    createdAt: "Mar 12, 2026",
-  },
-  {
-    id: "st-002",
-    name: "UrbanStep",
-    vendor: "Maria Garcia",
-    email: "maria@urbanstep.io",
-    products: 18,
-    revenue: 8920,
-    rating: 4.6,
-    status: "active",
-    createdAt: "Apr 3, 2026",
-  },
-  {
-    id: "st-003",
-    name: "Glow & Co",
-    vendor: "Priya Sharma",
-    email: "priya@glowco.com",
-    products: 31,
-    revenue: 15680,
-    rating: 4.9,
-    status: "active",
-    createdAt: "Feb 28, 2026",
-  },
-  {
-    id: "st-004",
-    name: "SoundWave",
-    vendor: "David Kim",
-    email: "david@soundwave.net",
-    products: 12,
-    revenue: 5340,
-    rating: 4.3,
-    status: "active",
-    createdAt: "May 18, 2026",
-  },
-  {
-    id: "st-005",
-    name: "FitFlex",
-    vendor: "Jordan Lee",
-    email: "jordan@fitflex.app",
-    products: 22,
-    revenue: 9870,
-    rating: 4.5,
-    status: "active",
-    createdAt: "Jun 1, 2026",
-  },
-  {
-    id: "st-006",
-    name: "BrewCraft",
-    vendor: "Sam Wilson",
-    email: "sam@brewcraft.co",
-    products: 9,
-    revenue: 3210,
-    rating: 4.7,
-    status: "active",
-    createdAt: "Jun 22, 2026",
-  },
-];
-
-const INITIAL_REPORTS: Report[] = [
-  {
-    id: "RPT-4421",
-    reporter: "emma.wilson@email.com",
-    targetStore: "SoundWave",
-    reason: "Product not as described — speaker arrived damaged.",
-    date: "Jul 6, 2026",
-    status: "pending",
-    severity: "high",
-  },
-  {
-    id: "RPT-4418",
-    reporter: "james.chen@email.com",
-    targetStore: "UrbanStep",
-    reason: "Delayed shipping beyond promised delivery window.",
-    date: "Jul 5, 2026",
-    status: "reviewed",
-    severity: "medium",
-  },
-  {
-    id: "RPT-4402",
-    reporter: "sarah.miller@email.com",
-    targetStore: "TechVault",
-    reason: "Excellent support — reporting positive experience for records.",
-    date: "Jul 4, 2026",
-    status: "resolved",
-    severity: "low",
-  },
-  {
-    id: "RPT-4395",
-    reporter: "michael.brown@email.com",
-    targetStore: "FitFlex",
-    reason: "Suspected counterfeit yoga mat received.",
-    date: "Jul 3, 2026",
-    status: "pending",
-    severity: "high",
-  },
-];
+const DUMMY_TOTAL_REVENUE = 42100;
 
 const REVENUE_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"];
 const REVENUE_DATA = [18200, 22400, 19800, 28600, 31200, 35800, 42100];
@@ -179,34 +73,92 @@ function getStoreInitials(name: string) {
     .toUpperCase();
 }
 
-export default function AdminPage() {
-  const [stores, setStores] = useState(INITIAL_STORES);
-  const [reports, setReports] = useState(INITIAL_REPORTS);
+function formatDate(dateValue: string) {
+  const parsed = new Date(dateValue);
+  if (Number.isNaN(parsed.getTime())) return dateValue;
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
-  const activeStores = useMemo(
-    () => stores.filter((s) => s.status === "active"),
-    [stores]
-  );
-  const uniqueVendors = useMemo(() => new Set(stores.map((s) => s.vendor)).size, [stores]);
-  const totalRevenue = useMemo(
-    () => stores.reduce((sum, s) => sum + s.revenue, 0),
-    [stores]
-  );
-  const pendingReports = useMemo(
-    () => reports.filter((r) => r.status === "pending").length,
+function AdminPageContent() {
+  const router = useRouter();
+  const [isCheckingRole, setIsCheckingRole] = useState(true);
+  const [stores, setStores] = useState<VendorStore[]>([]);
+  const [reports, setReports] = useState<AdminReport[]>([]);
+  const [banningId, setBanningId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const verifyAdmin = async () => {
+      const result = await GetUserRole();
+
+      if (result?.success && result?.data?.role === "admin") {
+        setIsCheckingRole(false);
+      } else {
+        toast.error("Restricted access");
+        router.push("/account");
+      }
+    };
+
+    verifyAdmin();
+  }, [router]);
+
+  useEffect(() => {
+    if (isCheckingRole) return;
+
+    const loadData = async () => {
+      const [storesResult, reportsResult] = await Promise.all([
+        GetAllVendorStores(),
+        GetAdminReports(),
+      ]);
+
+      if (storesResult?.success) {
+        setStores(storesResult.data || []);
+      } else {
+        toast.error(storesResult?.message || "Failed to load vendor stores.");
+      }
+
+      if (reportsResult?.success) {
+        setReports(reportsResult.data || []);
+      } else {
+        toast.error(reportsResult?.message || "Failed to load reports.");
+      }
+    };
+
+    loadData();
+  }, [isCheckingRole]);
+
+  const openReports = useMemo(
+    () => reports.filter((r) => r.status === "open").length,
     [reports]
   );
 
-  const banStore = (id: string) => {
-    setStores((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, status: "banned" as const } : s))
-    );
+  const banStore = async (vendorId: number) => {
+    setBanningId(vendorId);
+    const result = await BanStore(vendorId);
+    setBanningId(null);
+
+    if (result?.success) {
+      setStores((prev) => prev.filter((s) => s.vendorId !== vendorId));
+      toast.success("Store banned, vendor removed, and notification email sent.");
+    } else {
+      toast.error(result?.message || "Failed to ban store.");
+    }
   };
 
-  const resolveReport = (id: string) => {
-    setReports((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: "resolved" as const } : r))
-    );
+  const resolveReport = async (id: number) => {
+    const result = await ResolveReport(id);
+
+    if (result?.success) {
+      setReports((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status: "resolved" as const } : r))
+      );
+      toast.success("Report marked as resolved.");
+    } else {
+      toast.error(result?.message || "Failed to resolve report.");
+    }
   };
 
   const revenueChartData = {
@@ -259,6 +211,10 @@ export default function AdminPage() {
     },
   };
 
+  if (isCheckingRole) {
+    return null;
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.glowOrb} aria-hidden />
@@ -291,28 +247,26 @@ export default function AdminPage() {
           <article className={`${styles.statCard} ${styles.statCyan}`}>
             <div className={styles.statIcon}>🏪</div>
             <p className={styles.statLabel}>Total stores</p>
-            <p className={styles.statValue}>{activeStores.length}</p>
-            <p className={styles.statSub}>
-              {stores.length} created · {stores.filter((s) => s.status === "banned").length} banned
-            </p>
+            <p className={styles.statValue}>{stores.length}</p>
+            <p className={styles.statSub}>Live vendor stores on Marketo</p>
           </article>
           <article className={`${styles.statCard} ${styles.statViolet}`}>
             <div className={styles.statIcon}>👤</div>
             <p className={styles.statLabel}>Total vendors</p>
-            <p className={styles.statValue}>{uniqueVendors}</p>
+            <p className={styles.statValue}>{stores.length}</p>
             <p className={styles.statSub}>Active marketplace sellers</p>
           </article>
           <article className={`${styles.statCard} ${styles.statAmber}`}>
             <div className={styles.statIcon}>💰</div>
             <p className={styles.statLabel}>Total revenue</p>
-            <p className={styles.statValue}>{formatPrice(totalRevenue)}</p>
+            <p className={styles.statValue}>{formatPrice(DUMMY_TOTAL_REVENUE)}</p>
             <p className={styles.statSub}>+24% growth this quarter</p>
           </article>
           <article className={`${styles.statCard} ${styles.statRose}`}>
             <div className={styles.statIcon}>⚠️</div>
             <p className={styles.statLabel}>Open reports</p>
-            <p className={styles.statValue}>{pendingReports}</p>
-            <p className={styles.statSub}>Awaiting admin review</p>
+            <p className={styles.statValue}>{openReports}</p>
+            <p className={styles.statSub}>{reports.length} total · Awaiting admin review</p>
           </article>
         </section>
 
@@ -374,65 +328,46 @@ export default function AdminPage() {
           </div>
 
           <div className={styles.storeGrid}>
-            {stores.map((store) => (
-              <article
-                key={store.id}
-                className={`${styles.storeCard} ${
-                  store.status === "banned" ? styles.storeBanned : ""
-                }`}
-              >
-                <div className={styles.storeTop}>
-                  <div className={styles.storeAvatar}>{getStoreInitials(store.name)}</div>
-                  <div className={styles.storeMeta}>
-                    <h3 className={styles.storeName}>{store.name}</h3>
-                    <p className={styles.storeVendor}>{store.vendor}</p>
-                  </div>
-                  {store.status === "banned" ? (
-                    <span className={styles.bannedBadge}>Banned</span>
-                  ) : (
+            {stores.length === 0 ? (
+              <p className={styles.sectionSub}>No vendor stores yet.</p>
+            ) : (
+              stores.map((store) => (
+                <article key={store.vendorId} className={styles.storeCard}>
+                  <div className={styles.storeTop}>
+                    <div className={styles.storeAvatar}>{getStoreInitials(store.vendorName)}</div>
+                    <div className={styles.storeMeta}>
+                      <h3 className={styles.storeName}>{store.storeName}</h3>
+                      <p className={styles.storeVendor}>{store.vendorName}</p>
+                    </div>
                     <span className={styles.activeBadge}>Active</span>
-                  )}
-                </div>
-
-                <div className={styles.storeStats}>
-                  <div>
-                    <span className={styles.storeStatVal}>{store.products}</span>
-                    <span className={styles.storeStatLbl}>Products</span>
                   </div>
-                  <div>
-                    <span className={styles.storeStatVal}>{formatPrice(store.revenue)}</span>
-                    <span className={styles.storeStatLbl}>Revenue</span>
-                  </div>
-                  <div>
-                    <span className={styles.storeStatVal}>★ {store.rating}</span>
-                    <span className={styles.storeStatLbl}>Rating</span>
-                  </div>
-                </div>
 
-                <p className={styles.storeEmail}>{store.email}</p>
-                <p className={styles.storeDate}>Joined {store.createdAt}</p>
+                  <div className={styles.storeStats}>
+                    <div>
+                      <span className={styles.storeStatVal}>{store.productCount}</span>
+                      <span className={styles.storeStatLbl}>Products</span>
+                    </div>
+                  </div>
 
-                <div className={styles.storeActions}>
-                  <Link
-                    href="/vendor/store"
-                    className={styles.viewBtn}
-                  >
-                    View store
-                  </Link>
-                  {store.status === "active" ? (
+                  <p className={styles.storeEmail}>{store.email}</p>
+                  <p className={styles.storeDate}>Joined {formatDate(store.joinedAt)}</p>
+
+                  <div className={styles.storeActions}>
+                    <Link href={`/user?vendorId=${store.vendorId}`} className={styles.viewBtn}>
+                      View store
+                    </Link>
                     <button
                       type="button"
                       className={styles.banBtn}
-                      onClick={() => banStore(store.id)}
+                      onClick={() => banStore(store.vendorId)}
+                      disabled={banningId === store.vendorId}
                     >
-                      Ban store
+                      {banningId === store.vendorId ? "Banning..." : "Ban store"}
                     </button>
-                  ) : (
-                    <span className={styles.bannedLabel}>Store banned</span>
-                  )}
-                </div>
-              </article>
-            ))}
+                  </div>
+                </article>
+              ))
+            )}
           </div>
         </section>
 
@@ -449,40 +384,41 @@ export default function AdminPage() {
           </div>
 
           <div className={styles.reportsList}>
-            {reports.map((report) => (
-              <article key={report.id} className={styles.reportCard}>
-                <div className={styles.reportTop}>
-                  <span className={styles.reportId}>{report.id}</span>
-                  <span
-                    className={`${styles.severity} ${styles[`sev_${report.severity}`]}`}
-                  >
-                    {report.severity}
-                  </span>
-                  <span
-                    className={`${styles.reportStatus} ${styles[`status_${report.status}`]}`}
-                  >
-                    {report.status}
-                  </span>
-                </div>
-                <p className={styles.reportStore}>
-                  Against <strong>{report.targetStore}</strong>
-                </p>
-                <p className={styles.reportReason}>{report.reason}</p>
-                <div className={styles.reportFooter}>
-                  <span className={styles.reportReporter}>{report.reporter}</span>
-                  <time className={styles.reportDate}>{report.date}</time>
-                  {report.status === "pending" && (
-                    <button
-                      type="button"
-                      className={styles.resolveBtn}
-                      onClick={() => resolveReport(report.id)}
+            {reports.length === 0 ? (
+              <p className={styles.sectionSub}>No reports filed yet.</p>
+            ) : (
+              reports.map((report) => (
+                <article key={report.id} className={styles.reportCard}>
+                  <div className={styles.reportTop}>
+                    <span className={styles.reportId}>#{report.id}</span>
+                    <span
+                      className={`${styles.reportStatus} ${
+                        styles[`status_${report.status === "open" ? "pending" : "resolved"}`]
+                      }`}
                     >
-                      Mark resolved
-                    </button>
-                  )}
-                </div>
-              </article>
-            ))}
+                      {report.status}
+                    </span>
+                  </div>
+                  <p className={styles.reportStore}>
+                    Against <strong>{report.storeName}</strong>
+                  </p>
+                  <p className={styles.reportReason}>{report.comment}</p>
+                  <div className={styles.reportFooter}>
+                    <span className={styles.reportReporter}>{report.reporterEmail}</span>
+                    <time className={styles.reportDate}>{formatDate(report.createdAt)}</time>
+                    {report.status === "open" && (
+                      <button
+                        type="button"
+                        className={styles.resolveBtn}
+                        onClick={() => resolveReport(report.id)}
+                      >
+                        Mark resolved
+                      </button>
+                    )}
+                  </div>
+                </article>
+              ))
+            )}
           </div>
         </section>
       </main>
@@ -491,5 +427,13 @@ export default function AdminPage() {
         <p>© 2026 Marketo Admin — Platform control center</p>
       </footer>
     </div>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <ProtectedRoutes>
+      <AdminPageContent />
+    </ProtectedRoutes>
   );
 }

@@ -15,6 +15,7 @@ type Product = {
   image: string;
   description?: string;
   reviewCount?: number;
+  ownerUserId?: number;
 };
 
 type Deal = Product & {
@@ -145,6 +146,7 @@ function buildProductDetailHref(product: Product | Deal) {
     reviewCount: product.reviewCount ?? 0,
     image: product.image,
     description: product.description ?? "",
+    ownerUserId: product.ownerUserId ?? null,
   };
 
   const params = new URLSearchParams({
@@ -536,6 +538,7 @@ export default function App() {
           rating: 4.5,
           image: normalizeImageUrl(ad.image || ""),
           description: ad.description,
+          ownerUserId: ad.userId,
         }));
         setAllProducts(mapped);
       } else {

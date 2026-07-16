@@ -4,7 +4,7 @@ import ProtectedRoutes from "../../components/ProtectedRoutes";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { GetUserCart, RemoveFromCart } from "../../server/server";
+import { GetUserCart, RemoveFromCart, PlaceOrder } from "../../server/server";
 import styles from "./page.module.css";
 
 export type CartItem = {
@@ -88,6 +88,18 @@ export default function CartPage() {
       await loadCartItems();
     } else {
       toast.error(result?.message || "Failed to remove item from cart.");
+    }
+  };
+
+  const placeOrder = async (id: number) => {
+    const result = await PlaceOrder(id);
+
+    if (result?.success) {
+      toast.success("Order placed successfully!");
+      await RemoveFromCart(id);
+      await loadCartItems();
+    } else {
+      toast.error(result?.message || "Failed to place order.");
     }
   };
 
@@ -202,7 +214,11 @@ export default function CartPage() {
                           >
                             Remove from cart
                           </button>
-                          <button type="button" className={styles.orderBtn}>
+                          <button
+                            type="button"
+                            className={styles.orderBtn}
+                            onClick={() => placeOrder(item.id)}
+                          >
                             Place order
                           </button>
                         </div>

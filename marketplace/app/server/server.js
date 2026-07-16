@@ -291,6 +291,255 @@ export const RemoveFromCart = async (productId) => {
   }
 };
 
+export const PlaceOrder = async (productId) => {
+  try {
+    const token = getStoredToken();
+    const response = await fetch(`${API_BASE_URL}/api/user/PlaceOrder`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ productId }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to place order." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error placing order:", error);
+    return { success: false, message: "Network error while placing order." };
+  }
+};
+
+export const GetUserOrders = async () => {
+  try {
+    const token = getStoredToken();
+    const response = await fetch(`${API_BASE_URL}/api/user/GetUserOrders`, {
+      method: "GET",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to fetch your orders." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error fetching user orders:", error);
+    return { success: false, message: "Network error while fetching your orders." };
+  }
+};
+
+export const AddComment = async (productId, comment) => {
+  try {
+    const token = getStoredToken();
+    const response = await fetch(`${API_BASE_URL}/api/user/AddComment`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ productId, comment }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to post comment." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error posting comment:", error);
+    return { success: false, message: "Network error while posting comment." };
+  }
+};
+
+export const GetProductComments = async (productId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/user/GetProductComments?productId=${productId}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to fetch comments." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error fetching comments:", error);
+    return { success: false, message: "Network error while fetching comments." };
+  }
+};
+
+export const GetVendorAds = async (vendorId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/user/GetVendorAds?vendorId=${vendorId}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to fetch vendor's products." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error fetching vendor ads:", error);
+    return { success: false, message: "Network error while fetching vendor's products." };
+  }
+};
+
+export const SubmitReport = async (storeName, comment) => {
+  try {
+    const token = getStoredToken();
+    const response = await fetch(`${API_BASE_URL}/api/user/SubmitReport`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ storeName, comment }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to submit report." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error submitting report:", error);
+    return { success: false, message: "Network error while submitting report." };
+  }
+};
+
+export const GetUserRole = async () => {
+  try {
+    const token = getStoredToken();
+    const response = await fetch(`${API_BASE_URL}/api/user/GetUserRole`, {
+      method: "GET",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to fetch user role." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error fetching user role:", error);
+    return { success: false, message: "Network error while fetching user role." };
+  }
+};
+
+export const GetAllVendorStores = async () => {
+  try {
+    const token = getStoredToken();
+    const response = await fetch(`${API_BASE_URL}/api/user/GetAllVendorStores`, {
+      method: "GET",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to fetch vendor stores." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error fetching vendor stores:", error);
+    return { success: false, message: "Network error while fetching vendor stores." };
+  }
+};
+
+export const BanStore = async (vendorId) => {
+  try {
+    const token = getStoredToken();
+    const response = await fetch(`${API_BASE_URL}/api/user/BanStore`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ vendorId }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to ban store." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error banning store:", error);
+    return { success: false, message: "Network error while banning store." };
+  }
+};
+
+export const GetAdminReports = async () => {
+  try {
+    const token = getStoredToken();
+    const response = await fetch(`${API_BASE_URL}/api/user/GetAdminReports`, {
+      method: "GET",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to fetch reports." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error fetching reports:", error);
+    return { success: false, message: "Network error while fetching reports." };
+  }
+};
+
+export const ResolveReport = async (reportId) => {
+  try {
+    const token = getStoredToken();
+    const response = await fetch(`${API_BASE_URL}/api/user/ResolveReport`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ reportId }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to resolve report." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error resolving report:", error);
+    return { success: false, message: "Network error while resolving report." };
+  }
+};
+
 export const GetUserCart = async () => {
   try {
     const token = getStoredToken();

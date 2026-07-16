@@ -2,15 +2,15 @@
 
 import ProtectedRoutes from "../components/ProtectedRoutes"
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { AddToCart, RemoveFromCart } from "../server/server";
+import { AddToCart, RemoveFromCart, PlaceOrder, AddComment, GetProductComments } from "../server/server";
 import styles from "./page.module.css";
 
 type Comment = {
   id: string;
-  email: string;
+  author: string;
   text: string;
   date: string;
 };
@@ -24,7 +24,7 @@ type ProductDetail = {
   reviewCount: number;
   image: string;
   description: string;
-  comments: Comment[];
+  ownerUserId: number | null;
 };
 
 
@@ -44,9 +44,9 @@ function normalizeImageUrl(image: string) {
   return `http://localhost:5000${image.startsWith("/") ? image : `/${image}`}`;
 }
 
-function getInitials(email: string) {
-  const name = email.split("@")[0] ?? "U";
-  const parts = name.split(/[._-]/).filter(Boolean);
+function getInitials(author: string) {
+  const name = author.includes("@") ? author.split("@")[0] : author;
+  const parts = name.split(/[\s._-]/).filter(Boolean);
   if (parts.length >= 2) {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
@@ -74,6 +74,7 @@ function StarRating({ rating, size = 18 }: { rating: number; size?: number }) {
 }
 
 function ProductDetailContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const productId = Number(searchParams.get("id"));
   const productParam = searchParams.get("product");
@@ -87,7 +88,7 @@ function ProductDetailContent() {
     reviewCount: 0,
     image: "",
     description: "Product information will appear here once it is available.",
-    comments: [],
+    ownerUserId: null,
   };
 
   const baseProduct: ProductDetail = (() => {
@@ -103,7 +104,7 @@ function ProductDetailContent() {
           reviewCount: Number(parsed.reviewCount ?? 0),
           image: parsed.image ?? "",
           description: parsed.description ?? "",
-          comments: [],
+          ownerUserId: parsed.ownerUserId ?? null,
         } as ProductDetail;
       } catch {
         return fallbackProduct;
@@ -117,12 +118,24 @@ function ProductDetailContent() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [isInCart, setIsInCart] = useState(false);
+  const [isOrdered, setIsOrdered] = useState(false);
 
   useEffect(() => {
-    setComments(baseProduct.comments ?? []);
     setCommentText("");
     setIsInCart(false);
+    setIsOrdered(false);
   }, [productKey]);
+
+  const isOwnProduct = () => {
+    const storedUserId =
+      typeof window !== "undefined" ? window.localStorage.getItem("userId") : null;
+
+    return (
+      baseProduct.ownerUserId !== null &&
+      storedUserId !== null &&
+      String(baseProduct.ownerUserId) === String(storedUserId)
+    );
+  };
 
   const handleToggleCart = async () => {
     if (isInCart) {
@@ -136,6 +149,11 @@ function ProductDetailContent() {
       return;
     }
 
+    if (isOwnProduct()) {
+      toast.error("This is your own product, you cannot add it to cart.");
+      return;
+    }
+
     const result = await AddToCart(baseProduct.id);
     if (result?.success) {
       setIsInCart(true);
@@ -145,29 +163,58 @@ function ProductDetailContent() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleBuyNow = async () => {
+    if (isOwnProduct()) {
+      toast.error("This is your own product, you cannot buy it.");
+      return;
+    }
+
+    const result = await PlaceOrder(baseProduct.id);
+    if (result?.success) {
+      toast.success("Order placed successfully!");
+      setIsOrdered(true);
+      router.push("/vendor/orders");
+    } else {
+      toast.error(result?.message || "Failed to place order.");
+    }
+  };
+
+  const formatCommentDate = (dateValue: string) =>
+    new Date(dateValue).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+
+  const loadComments = async () => {
+    const result = await GetProductComments(baseProduct.id);
+    if (result?.success) {
+      const mapped: Comment[] = (result.data || []).map((c: any) => ({
+        id: String(c.id),
+        author: c.name || c.email || "Marketo user",
+        text: c.comment,
+        date: formatCommentDate(c.createdAt),
+      }));
+      setComments(mapped);
+    }
+  };
+
+  useEffect(() => {
+    loadComments();
+  }, [productKey]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedText = commentText.trim();
     if (!trimmedText) return;
 
-    const storedEmail =
-      typeof window !== "undefined"
-        ? window.localStorage.getItem("email") || window.localStorage.getItem("userEmail") || "member@example.com"
-        : "member@example.com";
-
-    const newComment: Comment = {
-      id: `c-${Date.now()}`,
-      email: storedEmail,
-      text: trimmedText,
-      date: new Date().toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }),
-    };
-
-    setComments((prev) => [newComment, ...prev]);
-    setCommentText("");
+    const result = await AddComment(baseProduct.id, trimmedText);
+    if (result?.success) {
+      setCommentText("");
+      await loadComments();
+    } else {
+      toast.error(result?.message || "Failed to post comment.");
+    }
   };
 
   return (
@@ -200,7 +247,13 @@ function ProductDetailContent() {
           </div>
 
           <div className={styles.infoCol}>
-            <p className={styles.storeTag}>{baseProduct.store}</p>
+            {baseProduct.ownerUserId !== null ? (
+              <Link href={`/user?vendorId=${baseProduct.ownerUserId}`} className={styles.storeTag}>
+                {baseProduct.store}
+              </Link>
+            ) : (
+              <p className={styles.storeTag}>{baseProduct.store}</p>
+            )}
             <h1 className={styles.title}>{baseProduct.name}</h1>
 
             <div className={styles.ratingRow}>
@@ -219,8 +272,13 @@ function ProductDetailContent() {
               <button type="button" className={isInCart ? styles.btnSecondary : styles.btnPrimary} onClick={handleToggleCart}>
                 {isInCart ? "Remove from cart" : "Add to cart"}
               </button>
-              <button type="button" className={styles.btnSecondary}>
-                Buy now
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                onClick={handleBuyNow}
+                disabled={isOrdered}
+              >
+                {isOrdered ? "Ordered" : "Buy now"}
               </button>
             </div>
 
@@ -268,11 +326,11 @@ function ProductDetailContent() {
               comments.map((comment) => (
                 <article key={comment.id} className={styles.commentCard}>
                   <div className={styles.commentAvatar} aria-hidden>
-                    {getInitials(comment.email)}
+                    {getInitials(comment.author)}
                   </div>
                   <div className={styles.commentBody}>
                     <div className={styles.commentMeta}>
-                      <span className={styles.commentEmail}>{comment.email}</span>
+                      <span className={styles.commentEmail}>{comment.author}</span>
                       <time className={styles.commentDate}>{comment.date}</time>
                     </div>
                     <p className={styles.commentText}>{comment.text}</p>
