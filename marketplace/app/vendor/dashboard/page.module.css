@@ -1,0 +1,564 @@
+/* ── Page shell ── */
+.page {
+  min-height: 100vh;
+  width: 100%;
+  max-width: 100vw;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(124, 58, 237, 0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 20%, rgba(13, 148, 136, 0.08), transparent),
+    var(--m-bg);
+}
+
+/* ── Header ── */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px) saturate(1.4);
+  border-bottom: 1px solid var(--m-border);
+  box-shadow: 0 4px 30px var(--m-glow);
+}
+
+.headerInner {
+  max-width: 1320px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 1rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .headerInner {
+    padding: 1rem 2rem;
+  }
+}
+
+.logo {
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  text-decoration: none;
+  flex-shrink: 0;
+  background: linear-gradient(120deg, var(--m-primary) 0%, var(--m-teal) 55%, var(--m-coral) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.nav {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.navLink {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--m-muted);
+  text-decoration: none;
+  padding: 0.45rem 0.7rem;
+  border-radius: 0.65rem;
+  border: 1.5px solid var(--m-border);
+  background: rgba(255, 255, 255, 0.7);
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.navLink:hover {
+  color: var(--m-primary);
+  border-color: #c4b5fd;
+  background: #fff;
+}
+
+@media (min-width: 480px) {
+  .navLink {
+    font-size: 0.85rem;
+    padding: 0.5rem 0.9rem;
+  }
+}
+
+/* ── Main ── */
+.main {
+  flex: 1;
+  max-width: 1320px;
+  width: 100%;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+@media (min-width: 768px) {
+  .main {
+    padding: 1.75rem 2rem 4rem;
+  }
+}
+
+/* ── Top bar ── */
+.topBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.topLabel {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--m-primary);
+  margin-bottom: 0.3rem;
+}
+
+.topTitle {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--m-text);
+  line-height: 1.15;
+}
+
+.topStore {
+  font-size: 0.9rem;
+  color: var(--m-muted);
+  font-weight: 600;
+  margin-top: 0.2rem;
+}
+
+.liveBadge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #15803d;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  white-space: nowrap;
+}
+
+/* ── Stat grid ── */
+.statGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .statGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.statCard {
+  padding: 1.25rem 1.35rem;
+  border-radius: 1.15rem;
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+  box-shadow: 0 8px 30px rgba(30, 27, 75, 0.06);
+  box-sizing: border-box;
+  min-width: 0;
+  transition: transform 0.25s, box-shadow 0.25s;
+}
+
+.statCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 40px rgba(124, 58, 237, 0.1);
+}
+
+.statCardPrimary {
+  background: linear-gradient(135deg, #faf5ff 0%, #fff 100%);
+  border-color: #ddd6fe;
+}
+
+.statCardRevenue {
+  background: linear-gradient(135deg, #f0fdfa 0%, #fff 100%);
+  border-color: #99f6e4;
+}
+
+.statLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--m-muted);
+  margin-bottom: 0.35rem;
+}
+
+.statValue {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 900;
+  color: var(--m-text);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.statCardRevenue .statValue {
+  background: linear-gradient(135deg, var(--m-teal), #059669);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.statHint {
+  font-size: 0.75rem;
+  color: var(--m-muted);
+  margin-top: 0.4rem;
+}
+
+/* ── Section titles ── */
+.sectionTitle {
+  font-size: clamp(1.15rem, 3vw, 1.45rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--m-text);
+  margin-bottom: 1rem;
+}
+
+.ringsSection .sectionTitle,
+.chartSection .sectionTitle,
+.ordersSection .sectionTitle {
+  margin-bottom: 0;
+}
+
+/* ── Circular rings ── */
+.ringsSection {
+  margin-bottom: 2rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.ringsGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .ringsGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+}
+
+.ringCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 1.5rem 1rem;
+  border-radius: 1.25rem;
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+  box-shadow: 0 8px 30px rgba(124, 58, 237, 0.06);
+  box-sizing: border-box;
+  min-width: 0;
+  transition: transform 0.25s, box-shadow 0.25s;
+}
+
+.ringCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 50px rgba(124, 58, 237, 0.12);
+}
+
+.ringChart {
+  position: relative;
+  width: 130px;
+  height: 130px;
+  margin-bottom: 1rem;
+}
+
+.ringCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: var(--m-text);
+  pointer-events: none;
+}
+
+.ringTitle {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--m-text);
+  margin-bottom: 0.25rem;
+}
+
+.ringSub {
+  font-size: 0.78rem;
+  color: var(--m-muted);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* ── Weekly chart ── */
+.chartSection {
+  margin-bottom: 2rem;
+  padding: 1.35rem 1.15rem;
+  border-radius: 1.25rem;
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+  box-shadow: 0 12px 40px rgba(124, 58, 237, 0.08);
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .chartSection {
+    padding: 1.5rem 1.5rem;
+  }
+}
+
+.chartHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.chartSub {
+  font-size: 0.85rem;
+  color: var(--m-muted);
+  margin-top: 0.25rem;
+}
+
+.weekHighlight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding: 0.6rem 1rem;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, #ede9fe, #e0e7ff);
+  border: 1px solid #c4b5fd;
+}
+
+.weekLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--m-primary-dark);
+}
+
+.weekValue {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: var(--m-text);
+}
+
+.chartWrap {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .chartWrap {
+    height: 320px;
+  }
+}
+
+/* ── Orders section ── */
+.ordersSection {
+  width: 100%;
+  min-width: 0;
+}
+
+.sectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.sectionCount {
+  font-size: 0.85rem;
+  color: var(--m-muted);
+  font-weight: 500;
+}
+
+.ordersList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.orderRow {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.15rem 1.15rem;
+  border-radius: 1rem;
+  background: var(--m-surface);
+  border: 1px solid var(--m-border);
+  box-shadow: 0 4px 20px rgba(30, 27, 75, 0.04);
+  box-sizing: border-box;
+  min-width: 0;
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+
+@media (min-width: 640px) {
+  .orderRow {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.15rem 1.35rem;
+  }
+}
+
+.orderRow:hover {
+  border-color: #c4b5fd;
+  box-shadow: 0 8px 30px rgba(124, 58, 237, 0.08);
+}
+
+.orderShipped {
+  opacity: 0.75;
+  background: #fafafa;
+}
+
+.orderInfo {
+  min-width: 0;
+  flex: 1;
+}
+
+.orderId {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--m-muted);
+  letter-spacing: 0.04em;
+  margin-bottom: 0.2rem;
+}
+
+.orderProduct {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--m-text);
+  margin-bottom: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.orderCustomer {
+  font-size: 0.85rem;
+  color: var(--m-muted);
+}
+
+.orderRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.65rem;
+  flex-shrink: 0;
+}
+
+@media (min-width: 640px) {
+  .orderRight {
+    align-items: flex-end;
+  }
+}
+
+.orderAmount {
+  font-size: 1.1rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--m-primary-dark), var(--m-teal));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.shipBtn {
+  padding: 0.6rem 1rem;
+  border-radius: 0.75rem;
+  border: none;
+  background: linear-gradient(135deg, var(--m-primary) 0%, #9333ea 100%);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+  white-space: nowrap;
+  width: 100%;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .shipBtn {
+    width: auto;
+  }
+}
+
+.shipBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.38);
+}
+
+.shippedBadge {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #15803d;
+  padding: 0.5rem 0.85rem;
+  border-radius: 0.65rem;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+}
+
+/* ── Footer ── */
+.footer {
+  padding: 1.75rem 1rem;
+  text-align: center;
+  border-top: 1px solid var(--m-border);
+  color: var(--m-muted);
+  font-size: 0.85rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.footerBrand {
+  font-weight: 900;
+  background: linear-gradient(120deg, var(--m-primary), var(--m-teal));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@media (max-width: 480px) {
+  .nav {
+    gap: 0.35rem;
+  }
+
+  .navLink {
+    font-size: 0.72rem;
+    padding: 0.4rem 0.55rem;
+  }
+
+  .ringChart {
+    width: 110px;
+    height: 110px;
+  }
+
+  .ringCenter {
+    font-size: 1.15rem;
+  }
+}
