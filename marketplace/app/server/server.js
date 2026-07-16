@@ -1,5 +1,7 @@
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
 export const SendOTP = async (req) => {
-  const response = await fetch("http://localhost:5000/api/user/send-otp", {
+  const response = await fetch(`${API_BASE_URL}/api/user/send-otp`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -13,7 +15,7 @@ export const SendOTP = async (req) => {
 
 export const VerifyOTP = async (req) => {
   try {
-    const response = await fetch("http://localhost:5000/api/user/verify-otp", {
+    const response = await fetch(`${API_BASE_URL}/api/user/verify-otp`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -36,7 +38,7 @@ export const VerifyOTP = async (req) => {
 
 export const RegisterUser = async (req) => {
   try {
-    const response = await fetch("http://localhost:5000/api/user/register", {
+    const response = await fetch(`${API_BASE_URL}/api/user/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -59,7 +61,7 @@ export const RegisterUser = async (req) => {
 
 export const Login = async (req) => {
 try {
-       const response = await fetch("http://localhost:5000/api/user/login", {
+       const response = await fetch(`${API_BASE_URL}/api/user/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -77,7 +79,7 @@ try {
 
 export const CheckToken  = async (token)=>{
        try {
-    const response = await fetch("http://localhost:5000/api/user/CheckToken",{
+    const response = await fetch(`${API_BASE_URL}/api/user/CheckToken`,{
       method : "GET",
       headers:{
         'Content-Type' : 'application/json',
@@ -95,7 +97,7 @@ export const CheckToken  = async (token)=>{
 export const GetUserAds = async () => {
   try {
     const token = getStoredToken();
-    const response = await fetch("http://localhost:5000/api/user/GetUserAds", {
+    const response = await fetch(`${API_BASE_URL}/api/user/GetUserAds`, {
       method: "GET",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
@@ -115,7 +117,7 @@ export const GetUserAds = async () => {
 
 export const GetAllAds = async () => {
   try {
-    const response = await fetch("http://localhost:5000/api/user/GetAllAds", {
+    const response = await fetch(`${API_BASE_URL}/api/user/GetAllAds`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
     });
@@ -148,7 +150,7 @@ const getStoredToken = () => {
 export const UpdateStoreName = async (userId, storeName) => {
   try {
     const token = getStoredToken();
-    const response = await fetch("http://localhost:5000/api/user/update-store-name", {
+    const response = await fetch(`${API_BASE_URL}/api/user/update-store-name`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -173,7 +175,7 @@ export const UpdateStoreName = async (userId, storeName) => {
 export const PostAd = async (formData) => {
   try {
     const token = getStoredToken();
-    const response = await fetch("http://localhost:5000/api/user/post-ad", {
+    const response = await fetch(`${API_BASE_URL}/api/user/post-ad`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
@@ -195,7 +197,7 @@ export const PostAd = async (formData) => {
 export const EditAd = async (formData) => {
   try {
     const token = getStoredToken();
-    const response = await fetch("http://localhost:5000/api/user/editAdByUserId", {
+    const response = await fetch(`${API_BASE_URL}/api/user/editAdByUserId`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
@@ -217,7 +219,7 @@ export const EditAd = async (formData) => {
 export const DeleteAd = async (adId) => {
   try {
     const token = getStoredToken();
-    const response = await fetch("http://localhost:5000/api/user/DeleteAdByUserId", {
+    const response = await fetch(`${API_BASE_URL}/api/user/DeleteAdByUserId`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -242,7 +244,7 @@ export const DeleteAd = async (adId) => {
 export const AddToCart = async (productId) => {
   try {
     const token = getStoredToken();
-    const response = await fetch("http://localhost:5000/api/user/AddToCart", {
+    const response = await fetch(`${API_BASE_URL}/api/user/AddToCart`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -267,7 +269,7 @@ export const AddToCart = async (productId) => {
 export const RemoveFromCart = async (productId) => {
   try {
     const token = getStoredToken();
-    const response = await fetch("http://localhost:5000/api/user/RemoveFromCart", {
+    const response = await fetch(`${API_BASE_URL}/api/user/RemoveFromCart`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -292,7 +294,7 @@ export const RemoveFromCart = async (productId) => {
 export const GetUserCart = async () => {
   try {
     const token = getStoredToken();
-    const response = await fetch("http://localhost:5000/api/user/GetUserCart", {
+    const response = await fetch(`${API_BASE_URL}/api/user/GetUserCart`, {
       method: "GET",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
