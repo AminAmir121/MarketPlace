@@ -166,7 +166,8 @@ function normalizeImageUrl(image: string) {
     return image;
   }
 
-  return `http://localhost:5000${image.startsWith("/") ? image : `/${image}`}`;
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  return `${apiBaseUrl}${image.startsWith("/") ? image : `/${image}`}`;
 }
 
 function ChevronLeft() {

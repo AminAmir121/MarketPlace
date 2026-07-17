@@ -59,7 +59,8 @@ export default function StorePage() {
               if (rawImage.startsWith("http://") || rawImage.startsWith("https://")) {
                 return rawImage;
               }
-              return `http://localhost:5000${rawImage.startsWith("/") ? rawImage : `/${rawImage}`}`;
+              const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+              return `${apiBaseUrl}${rawImage.startsWith("/") ? rawImage : `/${rawImage}`}`;
             })(),
             storeName: ad.storeName,
             description: ad.description,
