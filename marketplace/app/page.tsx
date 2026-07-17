@@ -441,6 +441,7 @@ export default function App() {
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const adminBtnRef = useRef<HTMLButtonElement | null>(null);
+  const productGridRef = useRef<HTMLElement | null>(null);
 
   const isLoggedIn = Boolean(user);
 
@@ -566,6 +567,12 @@ export default function App() {
       product.description?.toLowerCase().includes(trimmedQuery)
     );
   }, [allProducts, trimmedQuery]);
+
+  useEffect(() => {
+    if (isSearching) {
+      productGridRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [isSearching]);
 
   const maxDealIndex = Math.max(0, DEAL_PRODUCTS.length - dealsPerView);
 
@@ -786,7 +793,7 @@ export default function App() {
         </section>
 
         {/* All products grid */}
-        <section className={styles.gridSection}>
+        <section className={styles.gridSection} ref={productGridRef}>
           <div className={styles.sectionHead}>
             <div>
               <h2 className={styles.sectionTitle}>
