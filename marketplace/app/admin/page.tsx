@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import ProtectedRoutes from "../components/ProtectedRoutes";
-import { GetUserRole, GetAllVendorStores, BanStore, GetAdminReports, ResolveReport } from "../server/server";
+import { GetUserRole, GetAllVendorStores, BanStore, GetAdminReports, ResolveReport, GetPendingAds, ApproveAd, RejectAd } from "../server/server";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -48,6 +48,19 @@ type AdminReport = {
   reporterEmail: string;
 };
 
+type PendingAd = {
+  id: number;
+  name: string;
+  price: number;
+  storeName: string;
+  description: string;
+  image: string;
+  createdAt: string;
+  vendorId: number;
+  vendorName: string;
+  vendorEmail: string;
+};
+
 const DUMMY_TOTAL_REVENUE = 42100;
 
 const REVENUE_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"];
@@ -88,7 +101,9 @@ function AdminPageContent() {
   const [isCheckingRole, setIsCheckingRole] = useState(true);
   const [stores, setStores] = useState<VendorStore[]>([]);
   const [reports, setReports] = useState<AdminReport[]>([]);
+  const [pendingAds, setPendingAds] = useState<PendingAd[]>([]);
   const [banningId, setBanningId] = useState<number | null>(null);
+  const [decidingId, setDecidingId] = useState<number | null>(null);
 
   useEffect(() => {
     const verifyAdmin = async () => {
@@ -109,9 +124,10 @@ function AdminPageContent() {
     if (isCheckingRole) return;
 
     const loadData = async () => {
-      const [storesResult, reportsResult] = await Promise.all([
+      const [storesResult, reportsResult, pendingAdsResult] = await Promise.all([
         GetAllVendorStores(),
         GetAdminReports(),
+        GetPendingAds(),
       ]);
 
       if (storesResult?.success) {
@@ -125,6 +141,12 @@ function AdminPageContent() {
       } else {
         toast.error(reportsResult?.message || "Failed to load reports.");
       }
+
+      if (pendingAdsResult?.success) {
+        setPendingAds(pendingAdsResult.data || []);
+      } else {
+        toast.error(pendingAdsResult?.message || "Failed to load pending ads.");
+      }
     };
 
     loadData();
@@ -134,6 +156,19 @@ function AdminPageContent() {
     () => reports.filter((r) => r.status === "open").length,
     [reports]
   );
+
+  const decideAd = async (productId: number, approve: boolean) => {
+    setDecidingId(productId);
+    const result = approve ? await ApproveAd(productId) : await RejectAd(productId);
+    setDecidingId(null);
+
+    if (result?.success) {
+      setPendingAds((prev) => prev.filter((ad) => ad.id !== productId));
+      toast.success(approve ? "Ad approved." : "Ad rejected.");
+    } else {
+      toast.error(result?.message || "Failed to update ad.");
+    }
+  };
 
   const banStore = async (vendorId: number) => {
     setBanningId(vendorId);
@@ -312,6 +347,57 @@ function AdminPageContent() {
                 <span className={styles.quickLbl}>Avg rating</span>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Pending ad approvals */}
+        <section className={styles.reportsSection}>
+          <div className={styles.sectionHead}>
+            <div>
+              <h2 className={styles.sectionTitle}>Pending ad approvals</h2>
+              <p className={styles.sectionSub}>
+                New listings waiting for review before they go live
+              </p>
+            </div>
+            <span className={styles.sectionCount}>{pendingAds.length} pending</span>
+          </div>
+
+          <div className={styles.reportsList}>
+            {pendingAds.length === 0 ? (
+              <p className={styles.sectionSub}>No ads waiting for approval.</p>
+            ) : (
+              pendingAds.map((ad) => (
+                <article key={ad.id} className={styles.reportCard}>
+                  <p className={styles.reportStore}>
+                    <strong>{ad.name}</strong> — {formatPrice(ad.price)}
+                  </p>
+                  <p className={styles.reportReason}>{ad.description}</p>
+                  <div className={styles.reportFooter}>
+                    <span className={styles.reportReporter}>
+                      {ad.vendorName} ({ad.vendorEmail}) · {ad.storeName}
+                    </span>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                      <button
+                        type="button"
+                        className={styles.resolveBtn}
+                        onClick={() => decideAd(ad.id, true)}
+                        disabled={decidingId === ad.id}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.banBtn}
+                        onClick={() => decideAd(ad.id, false)}
+                        disabled={decidingId === ad.id}
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))
+            )}
           </div>
         </section>
 

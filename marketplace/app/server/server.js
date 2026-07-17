@@ -628,6 +628,98 @@ export const ResetPassword = async (email, otp, newPassword) => {
   }
 };
 
+export const GetPendingAds = async () => {
+  try {
+    const token = getStoredToken();
+    const response = await fetch(`${API_BASE_URL}/api/user/GetPendingAds`, {
+      method: "GET",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to fetch pending ads." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error fetching pending ads:", error);
+    return { success: false, message: "Network error while fetching pending ads." };
+  }
+};
+
+export const ApproveAd = async (productId) => {
+  try {
+    const token = getStoredToken();
+    const response = await fetch(`${API_BASE_URL}/api/user/ApproveAd`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ productId }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to approve ad." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error approving ad:", error);
+    return { success: false, message: "Network error while approving ad." };
+  }
+};
+
+export const RejectAd = async (productId) => {
+  try {
+    const token = getStoredToken();
+    const response = await fetch(`${API_BASE_URL}/api/user/RejectAd`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ productId }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to reject ad." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error rejecting ad:", error);
+    return { success: false, message: "Network error while rejecting ad." };
+  }
+};
+
+export const GetUserReports = async () => {
+  try {
+    const token = getStoredToken();
+    const response = await fetch(`${API_BASE_URL}/api/user/GetUserReports`, {
+      method: "GET",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to fetch your reports." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error fetching user reports:", error);
+    return { success: false, message: "Network error while fetching your reports." };
+  }
+};
+
 export const GetUserCart = async () => {
   try {
     const token = getStoredToken();

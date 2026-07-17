@@ -313,6 +313,9 @@ function AdminMenu({ user, onClose, onLogout }: { user: any; onClose: () => void
         <a href="/vendor/orders" onClick={onClose} className={styles.adminMenuItem}>
           <OrdersIcon /> <span>My Orders</span>
         </a>
+        <a href="/account/my-reports" onClick={onClose} className={styles.adminMenuItem}>
+          <OrdersIcon /> <span>My Reports</span>
+        </a>
       </nav>
 
       <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 8 }}>

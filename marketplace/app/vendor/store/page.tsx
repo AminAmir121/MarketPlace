@@ -12,6 +12,7 @@ type VendorAd = {
   name: string;
   price: number;
   status: "active" | "draft";
+  approvalStatus?: "pending" | "approved" | "rejected";
   image: string;
   views: number;
   storeName?: string;
@@ -50,6 +51,7 @@ export default function StorePage() {
             name: ad.name,
             price: Number(ad.price || 0),
             status: "active" as const,
+            approvalStatus: ad.approvalStatus || "approved",
             views: ad.views || 0,
             image: (() => {
               const rawImage = ad.image || "";
@@ -216,12 +218,16 @@ export default function StorePage() {
                     />
                     <span
                       className={`${styles.statusBadge} ${
-                        ad.status === "active"
+                        ad.approvalStatus === "approved"
                           ? styles.statusActive
                           : styles.statusDraft
                       }`}
                     >
-                      {ad.status}
+                      {ad.approvalStatus === "approved"
+                        ? "Approved"
+                        : ad.approvalStatus === "rejected"
+                        ? "Rejected"
+                        : "Pending approval"}
                     </span>
                   </div>
 

@@ -1,6 +1,6 @@
 const { generateAndSendOTP, verifyOTP: verifyOtpModel } = require('../model/OTP');
 
-const {RegisterUser, GetUserByEmail, UpdateUserStoreName, DeleteAdByUserId, EditAdByUserId, GetAllAds, GetAdsByUserId, PostAd: PostAdModel, AddToCart: AddToCartModel, RemoveFromCart: RemoveFromCartModel, GetUserCart: GetUserCartModel, PlaceOrder: PlaceOrderModel, GetUserOrders: GetUserOrdersModel, AddComment: AddCommentModel, GetProductComments: GetProductCommentsModel, GetVendorAds: GetVendorAdsModel, SubmitReport: SubmitReportModel, GetUserRole: GetUserRoleModel, GetAllVendorStores: GetAllVendorStoresModel, BanStore: BanStoreModel, GetAdminReports: GetAdminReportsModel, ResolveReport: ResolveReportModel, GetVendorOrders: GetVendorOrdersModel, MarkOrderReadyToShip: MarkOrderReadyToShipModel, RequestPasswordReset: RequestPasswordResetModel, ResetPassword: ResetPasswordModel} = require('../model/User');
+const {RegisterUser, GetUserByEmail, UpdateUserStoreName, DeleteAdByUserId, EditAdByUserId, GetAllAds, GetAdsByUserId, PostAd: PostAdModel, AddToCart: AddToCartModel, RemoveFromCart: RemoveFromCartModel, GetUserCart: GetUserCartModel, PlaceOrder: PlaceOrderModel, GetUserOrders: GetUserOrdersModel, AddComment: AddCommentModel, GetProductComments: GetProductCommentsModel, GetVendorAds: GetVendorAdsModel, SubmitReport: SubmitReportModel, GetUserRole: GetUserRoleModel, GetAllVendorStores: GetAllVendorStoresModel, BanStore: BanStoreModel, GetAdminReports: GetAdminReportsModel, ResolveReport: ResolveReportModel, GetVendorOrders: GetVendorOrdersModel, MarkOrderReadyToShip: MarkOrderReadyToShipModel, RequestPasswordReset: RequestPasswordResetModel, ResetPassword: ResetPasswordModel, GetPendingAds: GetPendingAdsModel, ApproveAd: ApproveAdModel, RejectAd: RejectAdModel, GetUserReports: GetUserReportsModel} = require('../model/User');
 const jwt = require('jsonwebtoken');
 
 const SendOtp = async (req, res) => {
@@ -577,4 +577,82 @@ const ResetPasswordController = async (req, res) => {
      }
 };
 
-module.exports = { SendOtp, VerfiyOTP, Register, Login, GetUserAds, GetAllAdsController, UpdateStoreName, PostAd, EditAd, DeleteAd, AddToCart, RemoveFromCartController, GetUserCartController, PlaceOrderController, GetUserOrdersController, AddCommentController, GetProductCommentsController, GetVendorAdsController, SubmitReportController, GetUserRoleController, GetAllVendorStoresController, BanStoreController, GetAdminReportsController, ResolveReportController, GetVendorOrdersController, MarkOrderReadyToShipController, RequestPasswordResetController, ResetPasswordController };
+const GetPendingAdsController = async (req, res) => {
+     try {
+          const result = await GetPendingAdsModel(req);
+
+          return res.status(200).json({
+               success: true,
+               data: result
+          });
+     } catch (error) {
+          console.error('Error fetching pending ads:', error);
+          const statusCode = error.message.includes('Admin access') || error.message.includes('authentication') ? 403 : 500;
+
+          return res.status(statusCode).json({
+               success: false,
+               message: error.message || "Failed to fetch pending ads."
+          });
+     }
+};
+
+const ApproveAdController = async (req, res) => {
+     try {
+          const result = await ApproveAdModel(req);
+
+          return res.status(200).json({
+               success: true,
+               message: "Ad approved.",
+               data: result
+          });
+     } catch (error) {
+          console.error('Error approving ad:', error);
+          const statusCode = error.message.includes('Admin access') || error.message.includes('authentication') ? 403 : (error.message.includes('required') || error.message.includes('not found') ? 400 : 500);
+
+          return res.status(statusCode).json({
+               success: false,
+               message: error.message || "Failed to approve ad."
+          });
+     }
+};
+
+const RejectAdController = async (req, res) => {
+     try {
+          const result = await RejectAdModel(req);
+
+          return res.status(200).json({
+               success: true,
+               message: "Ad rejected.",
+               data: result
+          });
+     } catch (error) {
+          console.error('Error rejecting ad:', error);
+          const statusCode = error.message.includes('Admin access') || error.message.includes('authentication') ? 403 : (error.message.includes('required') || error.message.includes('not found') ? 400 : 500);
+
+          return res.status(statusCode).json({
+               success: false,
+               message: error.message || "Failed to reject ad."
+          });
+     }
+};
+
+const GetUserReportsController = async (req, res) => {
+     try {
+          const result = await GetUserReportsModel(req);
+
+          return res.status(200).json({
+               success: true,
+               data: result
+          });
+     } catch (error) {
+          console.error('Error fetching user reports:', error);
+          const statusCode = error.message.includes('authentication') ? 400 : 500;
+
+          return res.status(statusCode).json({
+               success: false,
+               message: error.message || "Failed to fetch your reports."
+          });
+     }
+};
+
+module.exports = { SendOtp, VerfiyOTP, Register, Login, GetUserAds, GetAllAdsController, UpdateStoreName, PostAd, EditAd, DeleteAd, AddToCart, RemoveFromCartController, GetUserCartController, PlaceOrderController, GetUserOrdersController, AddCommentController, GetProductCommentsController, GetVendorAdsController, SubmitReportController, GetUserRoleController, GetAllVendorStoresController, BanStoreController, GetAdminReportsController, ResolveReportController, GetVendorOrdersController, MarkOrderReadyToShipController, RequestPasswordResetController, ResetPasswordController, GetPendingAdsController, ApproveAdController, RejectAdController, GetUserReportsController };

@@ -429,18 +429,7 @@ const GetVendorAds = async (vendorId) => {
           throw new Error("Vendor id is required.");
      }
 
-     await db.execute(`
-          CREATE TABLE IF NOT EXISTS userads (
-               productId INT AUTO_INCREMENT PRIMARY KEY,
-               userId INT NOT NULL,
-               title VARCHAR(255) NOT NULL,
-               price DECIMAL(10, 2) NOT NULL,
-               storeName VARCHAR(255) NOT NULL,
-               description TEXT NOT NULL,
-               image_path VARCHAR(255) DEFAULT NULL,
-               createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )
-     `);
+     await ensureUseradsTable();
 
      const [userRows] = await db.execute(
           "SELECT name, storeName FROM users WHERE userid = ?",
@@ -452,7 +441,7 @@ const GetVendorAds = async (vendorId) => {
      }
 
      const [adRows] = await db.execute(
-          "SELECT productId AS id, title AS name, price, storeName, description, image_path AS image, createdAt FROM userads WHERE userId = ? ORDER BY createdAt DESC",
+          "SELECT productId AS id, title AS name, price, storeName, description, image_path AS image, createdAt FROM userads WHERE userId = ? AND status = 'approved' ORDER BY createdAt DESC",
           [vendorId]
      );
 
@@ -852,7 +841,7 @@ const EditAdByUserId = async (req) => {
      };
 }
 
-const GetAllAds = async () => {
+const ensureUseradsTable = async () => {
      await db.execute(`
           CREATE TABLE IF NOT EXISTS userads (
                productId INT AUTO_INCREMENT PRIMARY KEY,
@@ -862,11 +851,23 @@ const GetAllAds = async () => {
                storeName VARCHAR(255) NOT NULL,
                description TEXT NOT NULL,
                image_path VARCHAR(255) DEFAULT NULL,
+               status VARCHAR(20) NOT NULL DEFAULT 'approved',
                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
           )
      `);
 
-     const query = "SELECT productId AS id, userId, title AS name, price, storeName, description, image_path AS image, createdAt FROM userads ORDER BY createdAt DESC";
+     const [columns] = await db.execute("SHOW COLUMNS FROM userads");
+     const columnNames = columns.map((column) => column.Field);
+
+     if (!columnNames.includes('status')) {
+          await db.execute("ALTER TABLE userads ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'approved'");
+     }
+};
+
+const GetAllAds = async () => {
+     await ensureUseradsTable();
+
+     const query = "SELECT productId AS id, userId, title AS name, price, storeName, description, image_path AS image, status AS approvalStatus, createdAt FROM userads WHERE status = 'approved' ORDER BY createdAt DESC";
      const [rows] = await db.execute(query);
 
      return rows.map((row) => ({
@@ -874,6 +875,7 @@ const GetAllAds = async () => {
           name: row.name,
           price: Number(row.price),
           status: "active",
+          approvalStatus: row.approvalStatus,
           views: 0,
           image: row.image || "https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=600&q=80",
           storeName: row.storeName,
@@ -890,20 +892,9 @@ const GetAdsByUserId = async (req) => {
           throw new Error("User authentication is required to fetch ads.");
      }
 
-     await db.execute(`
-          CREATE TABLE IF NOT EXISTS userads (
-               productId INT AUTO_INCREMENT PRIMARY KEY,
-               userId INT NOT NULL,
-               title VARCHAR(255) NOT NULL,
-               price DECIMAL(10, 2) NOT NULL,
-               storeName VARCHAR(255) NOT NULL,
-               description TEXT NOT NULL,
-               image_path VARCHAR(255) DEFAULT NULL,
-               createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-          )
-     `);
+     await ensureUseradsTable();
 
-     const query = "SELECT productId AS id, userId, title AS name, price, storeName, description, image_path AS image, createdAt FROM userads WHERE userId = ? ORDER BY createdAt DESC";
+     const query = "SELECT productId AS id, userId, title AS name, price, storeName, description, image_path AS image, status AS approvalStatus, createdAt FROM userads WHERE userId = ? ORDER BY createdAt DESC";
      const [rows] = await db.execute(query, [userId]);
 
      return rows.map((row) => ({
@@ -911,6 +902,7 @@ const GetAdsByUserId = async (req) => {
           name: row.name,
           price: Number(row.price),
           status: "active",
+          approvalStatus: row.approvalStatus,
           views: 0,
           image: row.image || "https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=600&q=80",
           storeName: row.storeName,
@@ -918,6 +910,67 @@ const GetAdsByUserId = async (req) => {
           createdAt: row.createdAt
      }));
 }
+
+const GetPendingAds = async (req) => {
+     await assertAdmin(req);
+     await ensureUseradsTable();
+
+     const [rows] = await db.execute(`
+          SELECT a.productId AS id, a.title AS name, a.price, a.storeName, a.description, a.image_path AS image, a.createdAt AS createdAt,
+                 u.userid AS vendorId, u.name AS vendorName, u.email AS vendorEmail
+          FROM userads a
+          JOIN users u ON u.userid = a.userId
+          WHERE a.status = 'pending'
+          ORDER BY a.createdAt ASC
+     `);
+
+     return rows.map((row) => ({
+          id: row.id,
+          name: row.name,
+          price: Number(row.price),
+          storeName: row.storeName,
+          description: row.description,
+          image: row.image || "https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=600&q=80",
+          createdAt: row.createdAt,
+          vendorId: row.vendorId,
+          vendorName: row.vendorName,
+          vendorEmail: row.vendorEmail
+     }));
+};
+
+const ApproveAd = async (req) => {
+     await assertAdmin(req);
+     const { productId } = req.body;
+
+     if (!productId) {
+          throw new Error("Product id is required.");
+     }
+
+     const [result] = await db.execute("UPDATE userads SET status = 'approved' WHERE productId = ?", [productId]);
+
+     if (result.affectedRows === 0) {
+          throw new Error("Ad not found.");
+     }
+
+     return { success: true, productId };
+};
+
+const RejectAd = async (req) => {
+     await assertAdmin(req);
+     const { productId } = req.body;
+
+     if (!productId) {
+          throw new Error("Product id is required.");
+     }
+
+     const [result] = await db.execute("UPDATE userads SET status = 'rejected' WHERE productId = ?", [productId]);
+
+     if (result.affectedRows === 0) {
+          throw new Error("Ad not found.");
+     }
+
+     return { success: true, productId };
+};
 
 const PostAd = async (req) => {
      const { title, price, storeName, description, userId: bodyUserId } = req.body;
@@ -987,11 +1040,15 @@ const PostAd = async (req) => {
           if (!columnNames.includes('image_path')) {
                await db.execute("ALTER TABLE userads ADD COLUMN image_path VARCHAR(255) DEFAULT NULL");
           }
+
+          if (!columnNames.includes('status')) {
+               await db.execute("ALTER TABLE userads ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'approved'");
+          }
      } catch (schemaError) {
           console.warn("Ad table schema check warning:", schemaError.message);
      }
 
-     const query = "INSERT INTO userads (userId, title, price, storeName, description, image_path) VALUES (?, ?, ?, ?, ?, ?)";
+     const query = "INSERT INTO userads (userId, title, price, storeName, description, image_path, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')";
      const [result] = await db.execute(query, [userId, title, price, storeName, description, imagePath]);
 
      return {
@@ -1002,8 +1059,29 @@ const PostAd = async (req) => {
           price,
           storeName,
           description,
-          image: imagePath
+          image: imagePath,
+          status: "pending"
      };
 }
 
-module.exports = { RegisterUser, GetUserByEmail, UpdateUserStoreName, DeleteAdByUserId, EditAdByUserId, GetAllAds, GetAdsByUserId, PostAd, AddToCart, RemoveFromCart, GetUserCart, PlaceOrder, GetUserOrders, AddComment, GetProductComments, GetVendorAds, SubmitReport, GetUserRole, GetAllVendorStores, BanStore, GetAdminReports, ResolveReport, GetVendorOrders, MarkOrderReadyToShip, RequestPasswordReset, ResetPassword };
+const GetUserReports = async (req) => {
+     const userId = getResolvedUserId(req, req.body?.userId || req.body?.user_id || req.body?.userid || null);
+
+     if (!userId) {
+          throw new Error("User authentication is required to fetch your reports.");
+     }
+
+     await ensureReportsTable();
+
+     const [rows] = await db.execute(
+          `SELECT id, storeName, comment, status, createdAt
+           FROM reports
+           WHERE userId = ?
+           ORDER BY createdAt DESC`,
+          [userId]
+     );
+
+     return rows;
+};
+
+module.exports = { RegisterUser, GetUserByEmail, UpdateUserStoreName, DeleteAdByUserId, EditAdByUserId, GetAllAds, GetAdsByUserId, PostAd, AddToCart, RemoveFromCart, GetUserCart, PlaceOrder, GetUserOrders, AddComment, GetProductComments, GetVendorAds, SubmitReport, GetUserRole, GetAllVendorStores, BanStore, GetAdminReports, ResolveReport, GetVendorOrders, MarkOrderReadyToShip, RequestPasswordReset, ResetPassword, GetPendingAds, ApproveAd, RejectAd, GetUserReports };
