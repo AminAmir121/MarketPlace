@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { AddToCart, GetAllAds, RemoveFromCart } from "./server/server";
@@ -439,6 +439,7 @@ export default function App() {
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const adminBtnRef = useRef<HTMLButtonElement | null>(null);
 
   const isLoggedIn = Boolean(user);
@@ -555,6 +556,17 @@ export default function App() {
     loadProducts();
   }, []);
 
+  const trimmedQuery = searchQuery.trim().toLowerCase();
+  const isSearching = trimmedQuery.length > 0;
+  const filteredProducts = useMemo(() => {
+    if (!trimmedQuery) return allProducts;
+    return allProducts.filter((product) =>
+      product.name?.toLowerCase().includes(trimmedQuery) ||
+      product.store?.toLowerCase().includes(trimmedQuery) ||
+      product.description?.toLowerCase().includes(trimmedQuery)
+    );
+  }, [allProducts, trimmedQuery]);
+
   const maxDealIndex = Math.max(0, DEAL_PRODUCTS.length - dealsPerView);
 
   useEffect(() => {
@@ -595,7 +607,8 @@ export default function App() {
               className={styles.searchInput}
               placeholder="Search products, stores, brands..."
               aria-label="Search products"
-              
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
@@ -776,13 +789,15 @@ export default function App() {
         <section className={styles.gridSection}>
           <div className={styles.sectionHead}>
             <div>
-              <h2 className={styles.sectionTitle}>All Products</h2>
+              <h2 className={styles.sectionTitle}>
+                {isSearching ? `Search results for "${searchQuery.trim()}"` : "All Products"}
+              </h2>
               <p className={styles.sectionSub}>
-                Curated from trusted vendors across Marketo
+                {isSearching ? "Matching products, stores, and brands" : "Curated from trusted vendors across Marketo"}
               </p>
             </div>
             <span className={styles.sectionSub}>
-              {allProducts.length} items
+              {filteredProducts.length} items
             </span>
           </div>
 
@@ -794,14 +809,20 @@ export default function App() {
                 </div>
               ))}
             </div>
-          ) : allProducts.length === 0 ? (
+          ) : filteredProducts.length === 0 ? (
             <div className={styles.emptyState}>
-              <p className={styles.emptyTitle}>No products available right now.</p>
-              <p className={styles.emptyText}>Please check back soon for new listings.</p>
+              <p className={styles.emptyTitle}>
+                {isSearching ? "Not found" : "No products available right now."}
+              </p>
+              <p className={styles.emptyText}>
+                {isSearching
+                  ? `No products, stores, or brands matched "${searchQuery.trim()}".`
+                  : "Please check back soon for new listings."}
+              </p>
             </div>
           ) : (
             <div className={styles.productGrid}>
-              {allProducts.map((product) => (
+              {filteredProducts.map((product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
