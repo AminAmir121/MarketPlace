@@ -540,6 +540,94 @@ export const ResolveReport = async (reportId) => {
   }
 };
 
+export const GetVendorOrders = async () => {
+  try {
+    const token = getStoredToken();
+    const response = await fetch(`${API_BASE_URL}/api/user/GetVendorOrders`, {
+      method: "GET",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to fetch vendor orders." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error fetching vendor orders:", error);
+    return { success: false, message: "Network error while fetching vendor orders." };
+  }
+};
+
+export const MarkOrderReadyToShip = async (orderId) => {
+  try {
+    const token = getStoredToken();
+    const response = await fetch(`${API_BASE_URL}/api/user/MarkOrderReadyToShip`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ orderId }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to update order." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error marking order ready to ship:", error);
+    return { success: false, message: "Network error while updating order." };
+  }
+};
+
+export const RequestPasswordReset = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/user/RequestPasswordReset`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to request password reset." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error requesting password reset:", error);
+    return { success: false, message: "Network error while requesting password reset." };
+  }
+};
+
+export const ResetPassword = async (email, otp, newPassword) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/user/ResetPassword`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, otp, newPassword }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { success: false, message: data?.message || "Failed to reset password." };
+    }
+
+    return data;
+  } catch (error) {
+    console.log("Error resetting password:", error);
+    return { success: false, message: "Network error while resetting password." };
+  }
+};
+
 export const GetUserCart = async () => {
   try {
     const token = getStoredToken();

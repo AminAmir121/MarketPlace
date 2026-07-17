@@ -1,6 +1,6 @@
 const { generateAndSendOTP, verifyOTP: verifyOtpModel } = require('../model/OTP');
 
-const {RegisterUser, GetUserByEmail, UpdateUserStoreName, DeleteAdByUserId, EditAdByUserId, GetAllAds, GetAdsByUserId, PostAd: PostAdModel, AddToCart: AddToCartModel, RemoveFromCart: RemoveFromCartModel, GetUserCart: GetUserCartModel, PlaceOrder: PlaceOrderModel, GetUserOrders: GetUserOrdersModel, AddComment: AddCommentModel, GetProductComments: GetProductCommentsModel, GetVendorAds: GetVendorAdsModel, SubmitReport: SubmitReportModel, GetUserRole: GetUserRoleModel, GetAllVendorStores: GetAllVendorStoresModel, BanStore: BanStoreModel, GetAdminReports: GetAdminReportsModel, ResolveReport: ResolveReportModel} = require('../model/User');
+const {RegisterUser, GetUserByEmail, UpdateUserStoreName, DeleteAdByUserId, EditAdByUserId, GetAllAds, GetAdsByUserId, PostAd: PostAdModel, AddToCart: AddToCartModel, RemoveFromCart: RemoveFromCartModel, GetUserCart: GetUserCartModel, PlaceOrder: PlaceOrderModel, GetUserOrders: GetUserOrdersModel, AddComment: AddCommentModel, GetProductComments: GetProductCommentsModel, GetVendorAds: GetVendorAdsModel, SubmitReport: SubmitReportModel, GetUserRole: GetUserRoleModel, GetAllVendorStores: GetAllVendorStoresModel, BanStore: BanStoreModel, GetAdminReports: GetAdminReportsModel, ResolveReport: ResolveReportModel, GetVendorOrders: GetVendorOrdersModel, MarkOrderReadyToShip: MarkOrderReadyToShipModel, RequestPasswordReset: RequestPasswordResetModel, ResetPassword: ResetPasswordModel} = require('../model/User');
 const jwt = require('jsonwebtoken');
 
 const SendOtp = async (req, res) => {
@@ -495,4 +495,86 @@ const ResolveReportController = async (req, res) => {
      }
 };
 
-module.exports = { SendOtp, VerfiyOTP, Register, Login, GetUserAds, GetAllAdsController, UpdateStoreName, PostAd, EditAd, DeleteAd, AddToCart, RemoveFromCartController, GetUserCartController, PlaceOrderController, GetUserOrdersController, AddCommentController, GetProductCommentsController, GetVendorAdsController, SubmitReportController, GetUserRoleController, GetAllVendorStoresController, BanStoreController, GetAdminReportsController, ResolveReportController };
+const GetVendorOrdersController = async (req, res) => {
+     try {
+          const result = await GetVendorOrdersModel(req);
+
+          return res.status(200).json({
+               success: true,
+               data: result
+          });
+     } catch (error) {
+          console.error('Error fetching vendor orders:', error);
+          const statusCode = error.message.includes('authentication') ? 400 : 500;
+
+          return res.status(statusCode).json({
+               success: false,
+               message: error.message || "Failed to fetch vendor orders."
+          });
+     }
+};
+
+const MarkOrderReadyToShipController = async (req, res) => {
+     try {
+          const result = await MarkOrderReadyToShipModel(req);
+
+          return res.status(200).json({
+               success: true,
+               message: "Order marked as ready to ship.",
+               data: result
+          });
+     } catch (error) {
+          console.error('Error marking order ready to ship:', error);
+          const statusCode = error.message.includes('required') || error.message.includes('authentication') || error.message.includes('not found') ? 400 : 500;
+
+          return res.status(statusCode).json({
+               success: false,
+               message: error.message || "Failed to update order."
+          });
+     }
+};
+
+const RequestPasswordResetController = async (req, res) => {
+     try {
+          await RequestPasswordResetModel(req);
+          const result = await generateAndSendOTP(req.body.email);
+
+          if (result && result.success === true) {
+               return res.status(200).json({
+                    success: true,
+                    message: "OTP sent to your email. Please check and enter it to reset your password."
+               });
+          }
+
+          return res.status(500).json({
+               success: false,
+               message: "Failed to send OTP. Please try again later."
+          });
+     } catch (error) {
+          console.error('Error requesting password reset:', error);
+          return res.status(400).json({
+               success: false,
+               message: error.message || "Failed to request password reset."
+          });
+     }
+};
+
+const ResetPasswordController = async (req, res) => {
+     try {
+          const result = await ResetPasswordModel(req);
+
+          return res.status(200).json({
+               success: true,
+               message: "Password reset successfully.",
+               data: result
+          });
+     } catch (error) {
+          console.error('Error resetting password:', error);
+          return res.status(400).json({
+               success: false,
+               message: error.message || "Failed to reset password."
+          });
+     }
+};
+
+module.exports = { SendOtp, VerfiyOTP, Register, Login, GetUserAds, GetAllAdsController, UpdateStoreName, PostAd, EditAd, DeleteAd, AddToCart, RemoveFromCartController, GetUserCartController, PlaceOrderController, GetUserOrdersController, AddCommentController, GetProductCommentsController, GetVendorAdsController, SubmitReportController, GetUserRoleController, GetAllVendorStoresController, BanStoreController, GetAdminReportsController, ResolveReportController, GetVendorOrdersController, MarkOrderReadyToShipController, RequestPasswordResetController, ResetPasswordController };

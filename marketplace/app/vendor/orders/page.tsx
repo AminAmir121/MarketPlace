@@ -8,7 +8,7 @@ import toast from "react-hot-toast";
 import { GetUserOrders } from "../../server/server";
 import styles from "./page.module.css";
 
-type OrderStatus = "processing" | "shipped" | "delivered" | "cancelled";
+type OrderStatus = "processing" | "ready_to_ship" | "shipped" | "delivered" | "cancelled";
 
 type Order = {
   id: string;
@@ -23,6 +23,7 @@ type Order = {
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
   processing: "Processing",
+  ready_to_ship: "Ready to Ship",
   shipped: "Shipped",
   delivered: "Delivered",
   cancelled: "Cancelled",

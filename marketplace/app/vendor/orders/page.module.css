@@ -333,6 +333,11 @@
   color: #b45309;
 }
 
+.status_ready_to_ship {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
 .status_shipped {
   background: #dbeafe;
   color: #1d4ed8;

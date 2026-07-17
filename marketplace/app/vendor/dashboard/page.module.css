@@ -398,6 +398,11 @@
   font-weight: 500;
 }
 
+.sectionSub {
+  font-size: 0.9rem;
+  color: var(--m-muted);
+}
+
 .ordersList {
   display: flex;
   flex-direction: column;

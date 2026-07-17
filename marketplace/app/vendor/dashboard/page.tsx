@@ -2,7 +2,9 @@
 
 import ProtectedRoutes from "../../components/ProtectedRoutes";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
+import { GetUserAds, GetVendorOrders, MarkOrderReadyToShip } from "../../server/server";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -26,52 +28,24 @@ ChartJS.register(
   Legend
 );
 
-const VENDOR_NAME = "Alex Johnson";
-const STORE_NAME = "TechVault";
-
 type CustomerOrder = {
-  id: string;
+  id: number;
   customer: string;
   product: string;
   amount: number;
   date: string;
-  status: "pending" | "shipped";
+  status: string;
 };
 
-const INITIAL_ORDERS: CustomerOrder[] = [
-  {
-    id: "ORD-9012",
-    customer: "Sarah Miller",
-    product: "Pro Wireless Headphones",
-    amount: 149.99,
-    date: "Jul 7, 2026",
-    status: "pending",
-  },
-  {
-    id: "ORD-9011",
-    customer: "James Chen",
-    product: "USB-C Fast Charger",
-    amount: 29.99,
-    date: "Jul 7, 2026",
-    status: "pending",
-  },
-  {
-    id: "ORD-9008",
-    customer: "Emma Wilson",
-    product: "Mechanical Keyboard",
-    amount: 89,
-    date: "Jul 6, 2026",
-    status: "pending",
-  },
-  {
-    id: "ORD-9005",
-    customer: "Michael Brown",
-    product: "Smart LED Desk Lamp",
-    amount: 45.5,
-    date: "Jul 5, 2026",
-    status: "shipped",
-  },
-];
+function formatDate(dateValue: string) {
+  const parsed = new Date(dateValue);
+  if (Number.isNaN(parsed.getTime())) return dateValue;
+  return parsed.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
 const WEEK_LABELS = ["Week 1", "Week 2", "Week 3", "Week 4", "Week 5", "Week 6", "Week 7"];
 const WEEK_SALES = [1240, 1580, 1320, 1890, 2100, 2450, 2680];
@@ -104,18 +78,70 @@ const ringOptions: ChartOptions<"doughnut"> = {
 };
 
 export default function DashboardPage() {
-  const [orders, setOrders] = useState(INITIAL_ORDERS);
+  const [vendorName, setVendorName] = useState("Vendor");
+  const [storeName, setStoreName] = useState("");
+  const [totalAds, setTotalAds] = useState(0);
+  const [orders, setOrders] = useState<CustomerOrder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeWeek, setActiveWeek] = useState<number | null>(null);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const savedName = window.localStorage.getItem("vendorName") || window.localStorage.getItem("name");
+    const savedStore = window.localStorage.getItem("storeName");
+    if (savedName) setVendorName(savedName);
+    if (savedStore) setStoreName(savedStore);
+  }, []);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+
+      const [adsResult, ordersResult] = await Promise.all([
+        GetUserAds(),
+        GetVendorOrders(),
+      ]);
+
+      if (adsResult?.success) {
+        setTotalAds((adsResult.data || []).length);
+      }
+
+      if (ordersResult?.success) {
+        const mapped: CustomerOrder[] = (ordersResult.data || []).map((o: any) => ({
+          id: o.id,
+          customer: o.buyerName || o.buyerEmail || "Customer",
+          product: o.productName,
+          amount: Number(o.price),
+          date: formatDate(o.date),
+          status: o.status,
+        }));
+        setOrders(mapped);
+      } else {
+        toast.error(ordersResult?.message || "Failed to load orders.");
+      }
+
+      setIsLoading(false);
+    };
+
+    loadData();
+  }, []);
+
   const pendingCount = useMemo(
-    () => orders.filter((o) => o.status === "pending").length,
+    () => orders.filter((o) => o.status === "processing").length,
     [orders]
   );
 
-  const markReadyToShip = (id: string) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, status: "shipped" as const } : o))
-    );
+  const markReadyToShip = async (id: number) => {
+    const result = await MarkOrderReadyToShip(id);
+
+    if (result?.success) {
+      setOrders((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, status: "ready_to_ship" } : o))
+      );
+      toast.success("Order marked as ready to ship.");
+    } else {
+      toast.error(result?.message || "Failed to update order.");
+    }
   };
 
   const viewsRing = buildRingData(78, "#7c3aed");
@@ -203,8 +229,8 @@ export default function DashboardPage() {
         <section className={styles.topBar}>
           <div>
             <p className={styles.topLabel}>Vendor dashboard</p>
-            <h1 className={styles.topTitle}>{VENDOR_NAME}</h1>
-            <p className={styles.topStore}>{STORE_NAME} Store</p>
+            <h1 className={styles.topTitle}>{vendorName}</h1>
+            <p className={styles.topStore}>{storeName || "Your"} Store</p>
           </div>
           <span className={styles.liveBadge}>● Live analytics</span>
         </section>
@@ -213,8 +239,8 @@ export default function DashboardPage() {
         <section className={styles.statGrid}>
           <article className={`${styles.statCard} ${styles.statCardPrimary}`}>
             <p className={styles.statLabel}>Total ads</p>
-            <p className={styles.statValue}>24</p>
-            <p className={styles.statHint}>6 active · 18 archived</p>
+            <p className={styles.statValue}>{totalAds}</p>
+            <p className={styles.statHint}>Live listings on Marketo</p>
           </article>
           <article className={`${styles.statCard} ${styles.statCardRevenue}`}>
             <p className={styles.statLabel}>Total revenue</p>
@@ -289,40 +315,46 @@ export default function DashboardPage() {
             <span className={styles.sectionCount}>{orders.length} orders</span>
           </div>
 
-          <div className={styles.ordersList}>
-            {orders.map((order) => (
-              <article
-                key={order.id}
-                className={`${styles.orderRow} ${
-                  order.status === "shipped" ? styles.orderShipped : ""
-                }`}
-              >
-                <div className={styles.orderInfo}>
-                  <p className={styles.orderId}>{order.id}</p>
-                  <h3 className={styles.orderProduct}>{order.product}</h3>
-                  <p className={styles.orderCustomer}>
-                    {order.customer} · {order.date}
-                  </p>
-                </div>
-                <div className={styles.orderRight}>
-                  <span className={styles.orderAmount}>
-                    {formatPrice(order.amount)}
-                  </span>
-                  {order.status === "pending" ? (
-                    <button
-                      type="button"
-                      className={styles.shipBtn}
-                      onClick={() => markReadyToShip(order.id)}
-                    >
-                      Ready to ship
-                    </button>
-                  ) : (
-                    <span className={styles.shippedBadge}>✓ Shipped</span>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
+          {isLoading ? (
+            <p className={styles.sectionSub}>Loading orders…</p>
+          ) : orders.length === 0 ? (
+            <p className={styles.sectionSub}>No orders placed against your products yet.</p>
+          ) : (
+            <div className={styles.ordersList}>
+              {orders.map((order) => (
+                <article
+                  key={order.id}
+                  className={`${styles.orderRow} ${
+                    order.status !== "processing" ? styles.orderShipped : ""
+                  }`}
+                >
+                  <div className={styles.orderInfo}>
+                    <p className={styles.orderId}>ORD-{order.id}</p>
+                    <h3 className={styles.orderProduct}>{order.product}</h3>
+                    <p className={styles.orderCustomer}>
+                      {order.customer} · {order.date}
+                    </p>
+                  </div>
+                  <div className={styles.orderRight}>
+                    <span className={styles.orderAmount}>
+                      {formatPrice(order.amount)}
+                    </span>
+                    {order.status === "processing" ? (
+                      <button
+                        type="button"
+                        className={styles.shipBtn}
+                        onClick={() => markReadyToShip(order.id)}
+                      >
+                        Ready to ship
+                      </button>
+                    ) : (
+                      <span className={styles.shippedBadge}>✓ Ready to ship</span>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
       </main>
 

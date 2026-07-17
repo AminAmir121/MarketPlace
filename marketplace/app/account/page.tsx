@@ -209,9 +209,9 @@ const HandleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
                 </label>
 
                 <div className={styles.forgotRow}>
-                  <button type="button" className={styles.forgotLink}>
+                  <Link href="/account/forgot-password" className={styles.forgotLink}>
                     Forgot password?
-                  </button>
+                  </Link>
                 </div>
 
                 <button type="submit" className={styles.submitBtn}>

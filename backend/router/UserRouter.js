@@ -3,7 +3,7 @@ const router = express.Router();
 const {verifyToken} = require('../middleware/auth')
 const upload = require('../utils/uploads');
 
-const {SendOtp, VerfiyOTP , Register, Login, GetUserAds, GetAllAdsController, UpdateStoreName, PostAd, EditAd, DeleteAd, AddToCart, RemoveFromCartController, GetUserCartController, PlaceOrderController, GetUserOrdersController, AddCommentController, GetProductCommentsController, GetVendorAdsController, SubmitReportController, GetUserRoleController, GetAllVendorStoresController, BanStoreController, GetAdminReportsController, ResolveReportController}  = require('../controller/UserController');
+const {SendOtp, VerfiyOTP , Register, Login, GetUserAds, GetAllAdsController, UpdateStoreName, PostAd, EditAd, DeleteAd, AddToCart, RemoveFromCartController, GetUserCartController, PlaceOrderController, GetUserOrdersController, AddCommentController, GetProductCommentsController, GetVendorAdsController, SubmitReportController, GetUserRoleController, GetAllVendorStoresController, BanStoreController, GetAdminReportsController, ResolveReportController, GetVendorOrdersController, MarkOrderReadyToShipController, RequestPasswordResetController, ResetPasswordController}  = require('../controller/UserController');
 
 router.post('/send-otp', SendOtp);
 router.post('/verify-otp', VerfiyOTP);
@@ -25,6 +25,10 @@ router.get('/GetProductComments', GetProductCommentsController);
 router.get('/GetVendorAds', GetVendorAdsController);
 router.post('/SubmitReport', verifyToken, SubmitReportController);
 router.get('/GetUserRole', verifyToken, GetUserRoleController);
+router.get('/GetVendorOrders', verifyToken, GetVendorOrdersController);
+router.post('/MarkOrderReadyToShip', verifyToken, MarkOrderReadyToShipController);
+router.post('/RequestPasswordReset', RequestPasswordResetController);
+router.post('/ResetPassword', ResetPasswordController);
 router.get('/GetAllVendorStores', verifyToken, GetAllVendorStoresController);
 router.post('/BanStore', verifyToken, BanStoreController);
 router.get('/GetAdminReports', verifyToken, GetAdminReportsController);

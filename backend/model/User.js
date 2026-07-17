@@ -661,6 +661,115 @@ const GetUserRole = async (req) => {
      return { role: rows[0].role || "vendor" };
 };
 
+const GetVendorOrders = async (req) => {
+     const vendorId = getResolvedUserId(req, req.body?.userId || req.body?.user_id || req.body?.userid || null);
+
+     if (!vendorId) {
+          throw new Error("User authentication is required to fetch vendor orders.");
+     }
+
+     await ensureOrdersTable();
+
+     const [rows] = await db.execute(
+          `SELECT o.id AS id, o.status AS status, o.createdAt AS createdAt, o.productId AS productId,
+                a.title AS productName, a.price AS price,
+                u.name AS buyerName, u.email AS buyerEmail
+           FROM orders o
+           JOIN userads a ON a.productId = o.productId
+           JOIN users u ON u.userid = o.userId
+           WHERE a.userId = ?
+           ORDER BY o.createdAt DESC`,
+          [vendorId]
+     );
+
+     return rows.map((row) => ({
+          id: row.id,
+          productId: row.productId,
+          productName: row.productName,
+          price: Number(row.price),
+          status: row.status,
+          date: row.createdAt,
+          buyerName: row.buyerName,
+          buyerEmail: row.buyerEmail
+     }));
+};
+
+const MarkOrderReadyToShip = async (req) => {
+     const vendorId = getResolvedUserId(req, req.body?.userId || req.body?.user_id || req.body?.userid || null);
+     const { orderId } = req.body;
+
+     if (!vendorId) {
+          throw new Error("User authentication is required.");
+     }
+
+     if (!orderId) {
+          throw new Error("Order id is required.");
+     }
+
+     const [result] = await db.execute(
+          `UPDATE orders o
+           JOIN userads a ON a.productId = o.productId
+           SET o.status = 'ready_to_ship'
+           WHERE o.id = ? AND a.userId = ?`,
+          [orderId, vendorId]
+     );
+
+     if (result.affectedRows === 0) {
+          throw new Error("Order not found or you are not allowed to update it.");
+     }
+
+     return { success: true, orderId };
+};
+
+const RequestPasswordReset = async (req) => {
+     const { email } = req.body;
+
+     if (!email) {
+          throw new Error("Email is required.");
+     }
+
+     const [rows] = await db.execute("SELECT userid FROM users WHERE email = ?", [email]);
+
+     if (rows.length === 0) {
+          throw new Error("No account found with this email.");
+     }
+
+     return { success: true };
+};
+
+const ResetPassword = async (req) => {
+     const { email, otp, newPassword } = req.body;
+
+     if (!email || !otp || !newPassword) {
+          throw new Error("Email, OTP and new password are required.");
+     }
+
+     const [rows] = await db.execute("SELECT otp, createdAt FROM otp WHERE email = ?", [email]);
+
+     if (rows.length === 0) {
+          throw new Error("OTP not found. Please request a new one.");
+     }
+
+     const stored = String(rows[0].otp).trim();
+     const entered = String(otp).trim();
+
+     if (stored !== entered) {
+          throw new Error("Invalid OTP.");
+     }
+
+     const diffMinutes = (new Date() - new Date(rows[0].createdAt)) / 1000 / 60;
+
+     if (diffMinutes > 10) {
+          await db.execute("DELETE FROM otp WHERE email = ?", [email]);
+          throw new Error("OTP expired. Please request a new one.");
+     }
+
+     await db.execute("UPDATE users SET password = ? WHERE email = ?", [newPassword, email]);
+     await db.execute("DELETE FROM otp WHERE email = ?", [email]);
+
+     return { success: true };
+};
+
 const EditAdByUserId = async (req) => {
      const { adId, id, productId, title, price, storeName, description, userId: bodyUserId } = req.body;
      const imagePath = req.file ? `/uploads/${req.file.filename}` : (req.body?.image || null);
@@ -897,4 +1006,4 @@ const PostAd = async (req) => {
      };
 }
 
-module.exports = { RegisterUser, GetUserByEmail, UpdateUserStoreName, DeleteAdByUserId, EditAdByUserId, GetAllAds, GetAdsByUserId, PostAd, AddToCart, RemoveFromCart, GetUserCart, PlaceOrder, GetUserOrders, AddComment, GetProductComments, GetVendorAds, SubmitReport, GetUserRole, GetAllVendorStores, BanStore, GetAdminReports, ResolveReport };
+module.exports = { RegisterUser, GetUserByEmail, UpdateUserStoreName, DeleteAdByUserId, EditAdByUserId, GetAllAds, GetAdsByUserId, PostAd, AddToCart, RemoveFromCart, GetUserCart, PlaceOrder, GetUserOrders, AddComment, GetProductComments, GetVendorAds, SubmitReport, GetUserRole, GetAllVendorStores, BanStore, GetAdminReports, ResolveReport, GetVendorOrders, MarkOrderReadyToShip, RequestPasswordReset, ResetPassword };
