@@ -132,7 +132,7 @@ const HandleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     }
 
     toast.success("Login successful!");
-    router.push("/");
+    router.push(result?.user?.role === "admin" ? "/admin" : "/");
   } else {
     toast.error(result?.message || "Failed to login.");
   }
