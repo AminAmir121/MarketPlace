@@ -1,6 +1,8 @@
 const db = require('../utils/db');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const { BrevoClient } = require('@getbrevo/brevo');
+
+const brevo = new BrevoClient({ apiKey: process.env.BREVO_API_KEY });
 
 const getResolvedUserId = (req, fallbackUserId = null) => {
      const fromBody = req.body?.userId || req.body?.user_id || req.body?.userid || fallbackUserId || null;
@@ -499,19 +501,11 @@ const assertAdmin = async (req) => {
 };
 
 const sendStoreDeletedEmail = async (email, name) => {
-     const transporter = nodemailer.createTransport({
-          service: 'gmail',
-          auth: {
-               user: 'ameenaamir121@gmail.com',
-               pass: 'aryu czss gzrh ybaf'
-          }
-     });
-
-     await transporter.sendMail({
-          from: 'ameenaamir121@gmail.com',
-          to: email,
+     await brevo.transactionalEmails.sendTransacEmail({
+          sender: { name: 'Marketo', email: 'ameenaamir121@gmail.com' },
+          to: [{ email }],
           subject: 'Your Marketo store has been removed',
-          text: `Hello ${name || ''},\n\nYour store and account on Marketo have been removed by an administrator due to a policy violation.\n\nIf you believe this was a mistake, please contact support.\n\n- Marketo Team`
+          textContent: `Hello ${name || ''},\n\nYour store and account on Marketo have been removed by an administrator due to a policy violation.\n\nIf you believe this was a mistake, please contact support.\n\n- Marketo Team`
      });
 };
 

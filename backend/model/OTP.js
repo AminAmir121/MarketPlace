@@ -1,5 +1,7 @@
 const db = require('../utils/db'); // your existing DB connection
-const nodemailer = require('nodemailer');
+const { BrevoClient } = require('@getbrevo/brevo');
+
+const brevo = new BrevoClient({ apiKey: process.env.BREVO_API_KEY });
 
 // Helper function to generate 4-digit OTP
 function generateOTP() {
@@ -8,23 +10,12 @@ function generateOTP() {
 
 
 async function sendOTPEmail(email, otp) {
-    // Configure your email service
-    const transporter = nodemailer.createTransport({
-        service: 'gmail', // or your email provider
-        auth: {
-            user: 'ameenaamir121@gmail.com', // your email
-            pass: 'aryu czss gzrh ybaf'     // app password for Gmail
-        }
-    });
-
-    const mailOptions = {
-        from: 'ameenaamir121@gmail.com',
-        to: email,
+    await brevo.transactionalEmails.sendTransacEmail({
+        sender: { name: 'Marketo', email: 'ameenaamir121@gmail.com' },
+        to: [{ email }],
         subject: `Your OTP is ${otp}`,
-        text: `Hello! Your OTP is: ${otp}. It will expire in 10 minutes.`
-    };
-
-    await transporter.sendMail(mailOptions);
+        textContent: `Hello! Your OTP is: ${otp}. It will expire in 10 minutes.`
+    });
 }
 
 // Main function to generate and send OTP
