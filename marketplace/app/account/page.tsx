@@ -5,7 +5,7 @@ import { useState } from "react";
 import styles from "./page.module.css";
 import toast from "react-hot-toast";
 
-import {SendOTP, Login } from "../server/server"
+import { RegisterUser, Login } from "../server/server"
 import { useRouter } from "next/navigation";
 
 function GoogleIcon() {
@@ -84,15 +84,18 @@ const HandleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
             password: RegPassword
         };
 
-        const OTP = await SendOTP(UserData);
+        const result = await RegisterUser(UserData);
 
-        if (OTP?.success) {
-            toast.success("OTP sent to your email. Please check and verify.");
-            router.push(
-                `/account/otp?name=${UserData.name}&email=${UserData.email}&password=${UserData.password}`
-            );
+        if (result?.success) {
+            toast.success("Account created successfully! Please log in.");
+            setIsSignup(false);
+            setLoginEmail(RegEmail);
+            setLoginPassword("");
+            setRegName("");
+            setRegEmail("");
+            setRegPassword("");
         } else {
-            toast.error(OTP?.message || "Failed to send OTP.");
+            toast.error(result?.message || "Failed to create account.");
         }
     } catch (error) {
         console.error(error);
